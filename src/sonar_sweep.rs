@@ -1,10 +1,17 @@
 use itertools::Itertools;
 
 pub fn sweep_increases<I: Iterator<Item = String>>(data: I) -> usize {
-    data.filter_map(|l| l.trim().parse::<u32>().ok())
+    lines_to_ints(data)
         .tuple_windows()
         .filter_map(|(s, n)| (n > s).then(|| s))
         .count()
+}
+
+fn lines_to_ints<I>(data: I) -> impl Iterator<Item = u32>
+where
+    I: Iterator<Item = String>,
+{
+    data.filter_map(|l| l.trim().parse::<u32>().ok())
 }
 
 #[cfg(test)]
