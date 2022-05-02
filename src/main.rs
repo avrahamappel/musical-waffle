@@ -1,12 +1,14 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+mod binary_diagnostic;
 mod dive;
 mod sonar_sweep;
 
 fn main() {
     day_one();
     day_two();
+    day_three();
 }
 
 fn day_one() {
@@ -25,6 +27,13 @@ fn day_two() {
     println!("{}", dive::plot_course(data()));
     println!("Day 2: Dive! Part 2");
     println!("{}", dive::plot_aimed_course(data()));
+}
+
+fn day_three() {
+    let data = || get_file_lines("data/binary_diagnostic.txt");
+
+    println!("Day 3: Binary Diagnostic");
+    println!("{}", binary_diagnostic::diagnose(data()));
 }
 
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
