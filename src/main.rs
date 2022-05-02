@@ -33,7 +33,7 @@ fn day_three() {
     let data = || get_file_lines("data/binary_diagnostic.txt");
 
     println!("Day 3: Binary Diagnostic");
-    println!("{}", binary_diagnostic::diagnose(data()));
+    println!("{}", binary_diagnostic::diagnose_power_consumption(data()));
 }
 
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
