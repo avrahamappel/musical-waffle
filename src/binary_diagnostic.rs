@@ -2,6 +2,16 @@ use std::cmp::Ordering;
 
 type BitList = Vec<u32>;
 
+fn div_ceil(a: u32, b: u32) -> u32 {
+    let d = a / b;
+    let r = a % b;
+    if r > 0 && b > 0 {
+        d + 1
+    } else {
+        d
+    }
+}
+
 fn strings_to_bit_lists<I>(data: I) -> Vec<BitList>
 where
     I: Iterator<Item = String>,
@@ -22,13 +32,33 @@ fn most_common_bits(data: &Vec<BitList>) -> BitList {
 }
 
 fn most_common_bit(data: &Vec<BitList>, position: usize) -> u32 {
-    let digits_sum: u32 = data.iter().map(|d| d[position]).sum();
+    let digits_sum: u32 = data.iter().map(|bs| bs[position]).sum();
 
-    match digits_sum.cmp(&(data.len() as u32 / 2)) {
+    match digits_sum.cmp(&div_ceil(data.len() as u32, 2)) {
         Ordering::Greater => 1,
         Ordering::Equal => 1,
         Ordering::Less => 0,
     }
+}
+
+fn single_most_common_bitlist(data: Vec<BitList>, position: Option<usize>) -> BitList {
+    let p = match position {
+        Some(p) => p,
+        None => 0,
+    };
+
+    if data.len() == 1 {
+        return data[0].to_owned();
+    }
+
+    let most_common_bit = most_common_bit(&data, p);
+
+    single_most_common_bitlist(
+        data.into_iter()
+            .filter_map(|b| (b[p] == most_common_bit).then(|| b))
+            .collect(),
+        Some(p + 1),
+    )
 }
 
 fn least_common_bits(data: &Vec<BitList>) -> BitList {
@@ -39,13 +69,33 @@ fn least_common_bits(data: &Vec<BitList>) -> BitList {
 }
 
 fn least_common_bit(data: &Vec<BitList>, position: usize) -> u32 {
-    let digits_sum: u32 = data.iter().map(|d| d[position]).sum();
+    let digits_sum: u32 = data.iter().map(|bs| bs[position]).sum();
 
-    match digits_sum.cmp(&(data.len() as u32 / 2)) {
+    match digits_sum.cmp(&div_ceil(data.len() as u32, 2)) {
         Ordering::Greater => 0,
         Ordering::Equal => 0,
         Ordering::Less => 1,
     }
+}
+
+fn single_least_common_bitlist(data: Vec<BitList>, position: Option<usize>) -> BitList {
+    let p = match position {
+        Some(p) => p,
+        None => 0,
+    };
+
+    if data.len() == 1 {
+        return data[0].to_owned();
+    }
+
+    let least_common_bit = least_common_bit(&data, p);
+
+    single_least_common_bitlist(
+        data.into_iter()
+            .filter_map(|b| (b[p] == least_common_bit).then(|| b))
+            .collect(),
+        Some(p + 1),
+    )
 }
 
 fn bin_to_dec(bin: &BitList) -> u32 {
@@ -75,37 +125,8 @@ where
     I: Iterator<Item = String>,
 {
     let data = strings_to_bit_lists(data);
-    let mut oxygen_gen_rating = Vec::with_capacity(data[0].len());
-    let mut co2_scrubber_rating = Vec::with_capacity(data[0].len());
-    let mut o_g_temp = data.clone();
-    let mut c_s_temp = data.clone();
-
-    for i in 0..o_g_temp[0].len() {
-        let most_common_bit = most_common_bit(&o_g_temp, i);
-
-        o_g_temp = o_g_temp
-            .into_iter()
-            .filter_map(|b| (b[i] == most_common_bit).then(|| b))
-            .collect();
-
-        if o_g_temp.len() == 1 {
-            oxygen_gen_rating = o_g_temp.remove(0);
-            break;
-        }
-    }
-
-    for i in 0..c_s_temp[0].len() {
-        let least_common_bit = least_common_bit(&c_s_temp, i);
-        c_s_temp = c_s_temp
-            .into_iter()
-            .filter_map(|b| (b[i] == least_common_bit).then(|| b))
-            .collect();
-
-        if c_s_temp.len() == 1 {
-            co2_scrubber_rating = c_s_temp.remove(0);
-            break;
-        }
-    }
+    let oxygen_gen_rating = single_most_common_bitlist(data.clone(), None);
+    let co2_scrubber_rating = single_least_common_bitlist(data.clone(), None);
 
     bin_to_dec(&oxygen_gen_rating) * bin_to_dec(&co2_scrubber_rating)
 }
