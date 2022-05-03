@@ -1,14 +1,19 @@
-use std::fs::File;
+use std::fs::{read_to_string, File};
 use std::io::{BufRead, BufReader};
 
 mod binary_diagnostic;
 mod dive;
+mod giant_squid;
 mod sonar_sweep;
 
-fn main() {
-    day_one();
-    day_two();
-    day_three();
+fn get_file_as_string(path: &str) -> String {
+    read_to_string(path).unwrap()
+}
+
+fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
+    BufReader::new(File::open(path).unwrap())
+        .lines()
+        .filter_map(Result::ok)
 }
 
 fn day_one() {
@@ -38,8 +43,16 @@ fn day_three() {
     println!("{}", binary_diagnostic::diagnose_life_support(data()));
 }
 
-fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
-    BufReader::new(File::open(path).unwrap())
-        .lines()
-        .filter_map(Result::ok)
+fn day_four() {
+    let data = || get_file_as_string("data/giant_squid.txt");
+
+    println!("Day 4: Giant Squid");
+    println!("{}", giant_squid::winning_board_score(&data()).unwrap());
+}
+
+fn main() {
+    day_one();
+    day_two();
+    day_three();
+    day_four();
 }
