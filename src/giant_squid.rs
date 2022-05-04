@@ -95,15 +95,23 @@ impl Bingo {
         Bingo { numbers, boards }
     }
 
-    fn play(mut self) -> Option<u32> {
-        self.numbers
-            .into_iter()
-            .find_map(|n| self.boards.iter_mut().find_map(|b| b.play_turn(n)))
+    fn play(mut self) -> Vec<u32> {
+        let mut scores = Vec::with_capacity(self.boards.len());
+
+        for n in self.numbers {
+            for b in &mut self.boards {
+                if let Some(scr) = b.play_turn(n) {
+                    scores.push(scr);
+                }
+            }
+        }
+
+        scores
     }
 }
 
 pub fn winning_board_score(data: &str) -> Option<u32> {
-    Bingo::new(data).play()
+    Bingo::new(data).play().first().map(|u| u.to_owned())
 }
 
 #[cfg(test)]
