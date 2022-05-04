@@ -6,10 +6,6 @@ mod dive;
 mod giant_squid;
 mod sonar_sweep;
 
-fn get_file_as_string(path: &str) -> String {
-    read_to_string(path).unwrap()
-}
-
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
     BufReader::new(File::open(path).unwrap())
         .lines()
@@ -44,10 +40,18 @@ fn day_three() {
 }
 
 fn day_four() {
-    let data = || get_file_as_string("data/giant_squid.txt");
+    let data = || read_to_string("data/giant_squid.txt").unwrap();
 
-    println!("Day 4: Giant Squid");
-    println!("{}", giant_squid::winning_board_score(&data()).unwrap());
+    println!("Day 4: Giant Squid Part 1");
+    println!(
+        "{}",
+        giant_squid::first_winning_board_score(&data()).unwrap()
+    );
+    println!("Day 4: Giant Squid Part 2");
+    println!(
+        "{}",
+        giant_squid::last_winning_board_score(&data()).unwrap()
+    );
 }
 
 fn main() {

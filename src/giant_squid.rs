@@ -5,6 +5,7 @@ const BOARD_LENGTH: usize = 5;
 struct Board {
     grid: [[u32; BOARD_LENGTH]; BOARD_LENGTH],
     circled: HashSet<(usize, usize)>,
+    won: bool,
 }
 
 impl std::fmt::Debug for Board {
@@ -25,7 +26,7 @@ impl std::fmt::Debug for Board {
 }
 
 impl Board {
-    fn new(data: &str) -> Self {
+    fn new(data: String) -> Self {
         let mut iter = data.lines().map(|l| {
             let mut it = l
                 .split_whitespace()
@@ -37,10 +38,15 @@ impl Board {
         Board {
             grid,
             circled: HashSet::new(),
+            won: false,
         }
     }
 
-    fn play_turn(&mut self, num: u32) -> Option<u32> {
+    fn play_turn(mut self, num: u32) -> (Self, Option<u32>) {
+        if self.won {
+            return (self, None);
+        }
+
         if let Some((x, y)) = self
             .grid
             .iter()
@@ -50,10 +56,14 @@ impl Board {
             self.circled.insert((x, y));
 
             if self.check_for_win(x, y) {
-                return Some(self.calculate_score(num));
+                self.won = true;
+                let score = self.calculate_score(num);
+
+                return (self, Some(score));
             }
         }
-        None
+
+        (self, None)
     }
 
     fn check_for_win(&self, x: usize, y: usize) -> bool {
@@ -73,9 +83,32 @@ impl Board {
     }
 }
 
+struct Boards {
+    boards: Vec<Board>,
+}
+
+impl Boards {
+    fn new<I>(data: I) -> Self
+    where
+        I: Iterator<Item = String>,
+    {
+        let boards = data.map(|b| Board::new(b)).collect();
+        Self { boards }
+    }
+
+    fn play_number(mut self, num: u32) -> (Self, Vec<u32>) {
+        let (boards, scores): (Vec<Board>, Vec<Option<u32>>) =
+            self.boards.into_iter().map(|b| b.play_turn(num)).unzip();
+
+        self.boards = boards;
+
+        (self, scores.into_iter().flatten().collect())
+    }
+}
+
 struct Bingo {
     numbers: Vec<u32>,
-    boards: Vec<Board>,
+    boards: Boards,
 }
 
 impl Bingo {
@@ -90,28 +123,37 @@ impl Bingo {
             .map(|s| s.parse().expect("Numbers line contained unexpected"))
             .collect();
 
-        let boards = data.map(|b| Board::new(b)).collect();
+        let boards = Boards::new(data.map(Into::into));
 
         Bingo { numbers, boards }
     }
 
-    fn play(mut self) -> Vec<u32> {
-        let mut scores = Vec::with_capacity(self.boards.len());
-
-        for n in self.numbers {
-            for b in &mut self.boards {
-                if let Some(scr) = b.play_turn(n) {
-                    scores.push(scr);
-                }
-            }
-        }
+    fn play(self) -> Vec<u32> {
+        let (_, scores) =
+            self.numbers
+                .into_iter()
+                .fold((self.boards, Vec::new()), |(boards, mut scores), n| {
+                    let (boards, mut scrs) = boards.play_number(n);
+                    scores.append(&mut scrs);
+                    (boards, scores)
+                });
 
         scores
     }
 }
 
-pub fn winning_board_score(data: &str) -> Option<u32> {
-    Bingo::new(data).play().first().map(|u| u.to_owned())
+pub fn first_winning_board_score(data: &str) -> Option<u32> {
+    match Bingo::new(data).play()[..] {
+        [head, ..] => Some(head),
+        _ => None,
+    }
+}
+
+pub fn last_winning_board_score(data: &str) -> Option<u32> {
+    match Bingo::new(data).play()[..] {
+        [.., last] => Some(last),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -139,7 +181,12 @@ mod tests {
  2  0 12  3  7"#;
 
     #[test]
-    fn it_calculates_winning_board_score() {
-        assert_eq!(Some(4512), winning_board_score(DATA))
+    fn it_calculates_first_winning_board_score() {
+        assert_eq!(Some(4512), first_winning_board_score(DATA))
+    }
+
+    #[test]
+    fn it_calculates_last_winning_board_score() {
+        assert_eq!(Some(1924), last_winning_board_score(DATA))
     }
 }
