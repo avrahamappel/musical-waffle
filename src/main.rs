@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader};
 mod binary_diagnostic;
 mod dive;
 mod giant_squid;
+mod hydrothermal_venture;
 mod sonar_sweep;
 
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
