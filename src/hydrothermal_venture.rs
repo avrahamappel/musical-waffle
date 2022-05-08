@@ -1,20 +1,29 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{char, line_ending};
-use nom::combinator::eof;
+use nom::character::complete::{char, digit1, line_ending};
+use nom::combinator::{eof, map, map_res};
 use nom::multi::many0;
-use nom::number::complete::u32;
-use nom::number::Endianness;
 use nom::sequence::{separated_pair, terminated};
-use nom::IResult;
+use nom::{IResult, Parser};
+
+fn separated_twins<F, G, H, I, O1, O2>(f: F, sep: H) -> impl FnMut(I) -> IResult<I, (O1, O1)>
+where
+    F: Fn() -> G,
+    G: Parser<I, O1, nom::error::Error<I>>,
+    H: Parser<I, O2, nom::error::Error<I>>,
+{
+    separated_pair(f(), sep, f())
+}
 
 #[derive(Debug, PartialEq, Eq)]
 struct Point(u32, u32);
 
 impl Point {
-    fn parse<'a>(input: &'a [u8]) -> IResult<&'a [u8], Self> {
-        separated_pair(u32(Endianness::Native), char(','), u32(Endianness::Native))(input)
-            .map(|(inp, (x, y))| (inp, Self(x, y)))
+    fn parse<'a>(input: &'a str) -> IResult<&'a str, Self> {
+        map(
+            separated_twins(|| map_res(digit1, str::parse), char(',')),
+            |(x, y)| Self(x, y),
+        )(input)
     }
 }
 
@@ -22,14 +31,15 @@ impl Point {
 struct Line(Point, Point);
 
 impl Line {
-    fn parse<'a>(input: &'a [u8]) -> IResult<&'a [u8], Self> {
-        separated_pair(Point::parse, tag(" -> "), Point::parse)(input)
-            .map(|(inp, (p1, p2))| (inp, Line(p1, p2)))
+    fn parse<'a>(input: &'a str) -> IResult<&'a str, Self> {
+        map(separated_twins(|| Point::parse, tag(" -> ")), |(p1, p2)| {
+            Line(p1, p2)
+        })(input)
     }
 }
 
-fn vent_parser<'a>(input: &'a str) -> IResult<&'a [u8], Vec<Line>> {
-    many0(terminated(Line::parse, alt((line_ending, eof))))(input.as_bytes())
+fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
+    many0(terminated(Line::parse, alt((line_ending, eof))))(input)
 }
 
 // pub fn dangerous_points(data: &str) -> u32 {
@@ -54,10 +64,23 @@ mod tests {
 5,5 -> 8,2"#;
 
     #[test]
+    fn it_parses_a_point_from_a_string_slice() {
+        assert_eq!(Ok(("", Point(8, 0))), Point::parse("8,0"))
+    }
+
+    #[test]
+    fn it_parses_a_line_from_a_string_slice() {
+        assert_eq!(
+            Ok(("", Line(Point(8, 0), Point(0, 8)))),
+            Line::parse("8,0 -> 0,8")
+        )
+    }
+
+    #[test]
     fn it_parses_lines() {
         assert_eq!(
             Ok((
-                "".as_bytes(),
+                "",
                 vec![
                     Line(Point(0, 9), Point(5, 9)),
                     Line(Point(8, 0), Point(0, 8)),
