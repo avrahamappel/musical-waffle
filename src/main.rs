@@ -41,18 +41,19 @@ fn day_three() {
 }
 
 fn day_four() {
-    let data = || read_to_string("data/giant_squid.txt").unwrap();
+    let data = read_to_string("data/giant_squid.txt").unwrap();
 
     println!("Day 4: Giant Squid Part 1");
-    println!(
-        "{}",
-        giant_squid::first_winning_board_score(&data()).unwrap()
-    );
+    println!("{}", giant_squid::first_winning_board_score(&data).unwrap());
     println!("Day 4: Giant Squid Part 2");
-    println!(
-        "{}",
-        giant_squid::last_winning_board_score(&data()).unwrap()
-    );
+    println!("{}", giant_squid::last_winning_board_score(&data).unwrap());
+}
+
+fn day_five() {
+    let data = include_str!("../data/hydrothermal_venture.txt");
+
+    println!("Day 5: Hydrothermal Venture");
+    println!("{}", hydrothermal_venture::dangerous_points(data).unwrap());
 }
 
 fn main() {
@@ -60,4 +61,5 @@ fn main() {
     day_two();
     day_three();
     day_four();
+    day_five();
 }

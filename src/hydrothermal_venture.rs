@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::iter::{once, repeat, zip};
 
 use nom::branch::alt;
@@ -18,7 +19,7 @@ where
     separated_pair(f(), sep, f())
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 struct Point {
     x: u32,
     y: u32,
@@ -111,11 +112,26 @@ fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
     many0(terminated(Line::parse, alt((line_ending, eof))))(input)
 }
 
-// pub fn dangerous_points(data: &str) -> u32 {
-//     let parsed = vent_parser(data);
+pub fn dangerous_points(data: &str) -> Result<usize, nom::Err<nom::error::Error<&str>>> {
+    let (_, lines) = vent_parser(data)?;
+    let danger = lines
+        .iter()
+        .filter_map(|l| (!l.is_diagonal()).then(|| l.points()))
+        .flatten()
+        .fold(HashMap::new(), |mut danger_register, point| {
+            danger_register
+                .entry(point)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
 
-//     dbg!(parsed)
-// }
+            danger_register
+        })
+        .into_iter()
+        .filter_map(|(_, v)| (v > 1).then(|| v))
+        .count();
+
+    Ok(danger)
+}
 
 #[cfg(test)]
 mod tests {
@@ -305,6 +321,6 @@ mod tests {
 
     #[test]
     fn it_calculates_dangerous_points() {
-        // assert_eq!(5, dangerous_points(DATA));
+        assert_eq!(Ok(5), dangerous_points(DATA));
     }
 }
