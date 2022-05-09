@@ -88,10 +88,10 @@ impl Line {
         match self.traj() {
             Trajectory::None => Box::new(once(self.start)),
             Trajectory::North => Box::new(
-                zip(repeat(self.start.x), self.start.y..=self.end.y).map(|(x, y)| Point { x, y }),
+                zip(repeat(self.start.x), self.end.y..=self.start.y).map(|(x, y)| Point { x, y }),
             ),
             Trajectory::South => Box::new(
-                zip(repeat(self.start.x), self.end.y..=self.start.y).map(|(x, y)| Point { x, y }),
+                zip(repeat(self.start.x), self.start.y..=self.end.y).map(|(x, y)| Point { x, y }),
             ),
             Trajectory::East => Box::new(
                 zip(self.start.x..=self.end.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
