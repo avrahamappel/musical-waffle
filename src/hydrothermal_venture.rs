@@ -10,6 +10,9 @@ use nom::multi::many0;
 use nom::sequence::{separated_pair, terminated};
 use nom::{IResult, Parser};
 
+/// This is totally overengineered, but it was worth it. I learned a TON about nom parser
+/// combinators, and about working in 2d space.
+
 fn separated_twins<F, G, H, I, O1, O2>(f: F, sep: H) -> impl FnMut(I) -> IResult<I, (O1, O1)>
 where
     F: Fn() -> G,
@@ -112,12 +115,9 @@ fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
     many0(terminated(Line::parse, alt((line_ending, eof))))(input)
 }
 
-pub fn dangerous_points(data: &str) -> Result<usize, nom::Err<nom::error::Error<&str>>> {
-    let (_, lines) = vent_parser(data)?;
-    let danger = lines
-        .iter()
-        .filter_map(|l| (!l.is_diagonal()).then(|| l.points()))
-        .flatten()
+fn dangerous_points<I: Iterator<Item = Line>>(lines: I) -> usize {
+    lines
+        .flat_map(|l| l.points())
         .fold(HashMap::new(), |mut danger_register, point| {
             danger_register
                 .entry(point)
@@ -128,10 +128,18 @@ pub fn dangerous_points(data: &str) -> Result<usize, nom::Err<nom::error::Error<
         })
         .into_iter()
         .filter_map(|(_, v)| (v > 1).then(|| v))
-        .count();
+        .count()
+}
+
+pub fn right_angle_dangerous_points(
+    data: &str,
+) -> Result<usize, nom::Err<nom::error::Error<&str>>> {
+    let (_, lines) = vent_parser(data)?;
+    let danger = dangerous_points(lines.into_iter().filter(|l| (!l.is_diagonal())));
 
     Ok(danger)
 }
+// pub fn all_dangerous_points() {}
 
 #[cfg(test)]
 mod tests {
@@ -263,11 +271,11 @@ mod tests {
 
         if let Ok((_, lines)) = vent_parser(DATA) {
             assert_eq!(
-                vec![East, West, North, South, East, West,],
-                lines
-                    .into_iter()
-                    .filter_map(|l| (!l.is_diagonal()).then(|| l.traj()))
-                    .collect::<Vec<_>>()
+                vec![
+                    East, Southwest, West, North, South, Northwest, East, West, Southeast,
+                    Northeast
+                ],
+                lines.into_iter().map(|l| l.traj()).collect::<Vec<_>>()
             )
         }
     }
@@ -283,6 +291,17 @@ mod tests {
                     Point { x: 3, y: 9 },
                     Point { x: 4, y: 9 },
                     Point { x: 5, y: 9 },
+                ],
+                vec![
+                    Point { x: 8, y: 0 },
+                    Point { x: 7, y: 1 },
+                    Point { x: 6, y: 2 },
+                    Point { x: 5, y: 3 },
+                    Point { x: 4, y: 4 },
+                    Point { x: 3, y: 5 },
+                    Point { x: 2, y: 6 },
+                    Point { x: 1, y: 7 },
+                    Point { x: 0, y: 8 },
                 ],
                 vec![
                     Point { x: 3, y: 4 },
@@ -302,6 +321,13 @@ mod tests {
                     Point { x: 7, y: 4 },
                 ],
                 vec![
+                    Point { x: 6, y: 4 },
+                    Point { x: 5, y: 3 },
+                    Point { x: 4, y: 2 },
+                    Point { x: 3, y: 1 },
+                    Point { x: 2, y: 0 },
+                ],
+                vec![
                     Point { x: 0, y: 9 },
                     Point { x: 1, y: 9 },
                     Point { x: 2, y: 9 },
@@ -311,9 +337,26 @@ mod tests {
                     Point { x: 2, y: 4 },
                     Point { x: 3, y: 4 },
                 ],
+                vec![
+                    Point { x: 0, y: 0 },
+                    Point { x: 1, y: 1 },
+                    Point { x: 2, y: 2 },
+                    Point { x: 3, y: 3 },
+                    Point { x: 4, y: 4 },
+                    Point { x: 5, y: 5 },
+                    Point { x: 6, y: 6 },
+                    Point { x: 7, y: 7 },
+                    Point { x: 8, y: 8 },
+                ],
+                vec![
+                    Point { x: 5, y: 5 },
+                    Point { x: 6, y: 4 },
+                    Point { x: 7, y: 3 },
+                    Point { x: 8, y: 2 },
+                ],
             ];
 
-            for (exp, line) in zip(expected, lines.iter().filter(|l| !l.is_diagonal())) {
+            for (exp, line) in zip(expected, lines) {
                 assert_eq!(exp, line.points().collect::<Vec<_>>())
             }
         }
@@ -321,6 +364,6 @@ mod tests {
 
     #[test]
     fn it_calculates_dangerous_points() {
-        assert_eq!(Ok(5), dangerous_points(DATA));
+        assert_eq!(Ok(5), right_angle_dangerous_points(DATA));
     }
 }
