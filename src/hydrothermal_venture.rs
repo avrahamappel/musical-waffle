@@ -1,3 +1,6 @@
+use std::cmp::Ordering;
+use std::iter::{once, repeat, zip};
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{char, digit1, line_ending};
@@ -15,26 +18,92 @@ where
     separated_pair(f(), sep, f())
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct Point(u32, u32);
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct Point {
+    x: u32,
+    y: u32,
+}
 
 impl Point {
     fn parse<'a>(input: &'a str) -> IResult<&'a str, Self> {
         map(
             separated_twins(|| map_res(digit1, str::parse), char(',')),
-            |(x, y)| Self(x, y),
+            |(x, y)| Self { x, y },
         )(input)
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Line(Point, Point);
+enum Trajectory {
+    None,
+    North,
+    South,
+    East,
+    West,
+    Northeast,
+    Northwest,
+    Southeast,
+    Southwest,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct Line {
+    start: Point,
+    end: Point,
+}
 
 impl Line {
     fn parse<'a>(input: &'a str) -> IResult<&'a str, Self> {
-        map(separated_twins(|| Point::parse, tag(" -> ")), |(p1, p2)| {
-            Line(p1, p2)
-        })(input)
+        map(
+            separated_twins(|| Point::parse, tag(" -> ")),
+            |(start, end)| Line { start, end },
+        )(input)
+    }
+
+    fn is_diagonal(&self) -> bool {
+        self.start.x != self.end.x && self.start.y != self.end.y
+    }
+
+    fn traj(&self) -> Trajectory {
+        match self.start.x.cmp(&self.end.x) {
+            Ordering::Equal => match self.start.y.cmp(&self.end.y) {
+                Ordering::Equal => Trajectory::None,
+                Ordering::Greater => Trajectory::North,
+                Ordering::Less => Trajectory::South,
+            },
+            Ordering::Greater => match self.start.y.cmp(&self.end.y) {
+                Ordering::Equal => Trajectory::West,
+                Ordering::Greater => Trajectory::Northwest,
+                Ordering::Less => Trajectory::Southwest,
+            },
+            Ordering::Less => match self.start.y.cmp(&self.end.y) {
+                Ordering::Equal => Trajectory::East,
+                Ordering::Greater => Trajectory::Northeast,
+                Ordering::Less => Trajectory::Southeast,
+            },
+        }
+    }
+
+    fn points(&self) -> Box<dyn Iterator<Item = Point>> {
+        match self.traj() {
+            Trajectory::None => Box::new(once(self.start)),
+            Trajectory::North => Box::new(
+                zip(repeat(self.start.x), self.start.y..=self.end.y).map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::South => Box::new(
+                zip(repeat(self.start.x), self.end.y..=self.start.y).map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::East => Box::new(
+                zip(self.start.x..=self.end.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::West => Box::new(
+                zip(self.end.x..=self.start.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::Northwest => todo!(),
+            Trajectory::Northeast => todo!(),
+            Trajectory::Southeast => todo!(),
+            Trajectory::Southwest => todo!(),
+        }
     }
 }
 
@@ -65,13 +134,19 @@ mod tests {
 
     #[test]
     fn it_parses_a_point_from_a_string_slice() {
-        assert_eq!(Ok(("", Point(8, 0))), Point::parse("8,0"))
+        assert_eq!(Ok(("", Point { x: 8, y: 0 })), Point::parse("8,0"))
     }
 
     #[test]
     fn it_parses_a_line_from_a_string_slice() {
         assert_eq!(
-            Ok(("", Line(Point(8, 0), Point(0, 8)))),
+            Ok((
+                "",
+                Line {
+                    start: Point { x: 8, y: 0 },
+                    end: Point { x: 0, y: 8 }
+                }
+            )),
             Line::parse("8,0 -> 0,8")
         )
     }
@@ -82,24 +157,154 @@ mod tests {
             Ok((
                 "",
                 vec![
-                    Line(Point(0, 9), Point(5, 9)),
-                    Line(Point(8, 0), Point(0, 8)),
-                    Line(Point(9, 4), Point(3, 4)),
-                    Line(Point(2, 2), Point(2, 1)),
-                    Line(Point(7, 0), Point(7, 4)),
-                    Line(Point(6, 4), Point(2, 0)),
-                    Line(Point(0, 9), Point(2, 9)),
-                    Line(Point(3, 4), Point(1, 4)),
-                    Line(Point(0, 0), Point(8, 8)),
-                    Line(Point(5, 5), Point(8, 2)),
+                    Line {
+                        start: Point { x: 0, y: 9 },
+                        end: Point { x: 5, y: 9 }
+                    },
+                    Line {
+                        start: Point { x: 8, y: 0 },
+                        end: Point { x: 0, y: 8 }
+                    },
+                    Line {
+                        start: Point { x: 9, y: 4 },
+                        end: Point { x: 3, y: 4 }
+                    },
+                    Line {
+                        start: Point { x: 2, y: 2 },
+                        end: Point { x: 2, y: 1 }
+                    },
+                    Line {
+                        start: Point { x: 7, y: 0 },
+                        end: Point { x: 7, y: 4 }
+                    },
+                    Line {
+                        start: Point { x: 6, y: 4 },
+                        end: Point { x: 2, y: 0 }
+                    },
+                    Line {
+                        start: Point { x: 0, y: 9 },
+                        end: Point { x: 2, y: 9 }
+                    },
+                    Line {
+                        start: Point { x: 3, y: 4 },
+                        end: Point { x: 1, y: 4 }
+                    },
+                    Line {
+                        start: Point { x: 0, y: 0 },
+                        end: Point { x: 8, y: 8 }
+                    },
+                    Line {
+                        start: Point { x: 5, y: 5 },
+                        end: Point { x: 8, y: 2 }
+                    },
                 ]
             )),
             vent_parser(DATA)
         )
     }
 
-    // #[test]
-    // fn it_calculates_dangerous_points() {
-    //     // assert_eq!(5, dangerous_points(DATA));
-    // }
+    #[test]
+    fn filter_out_diagonals() {
+        if let Ok((_, lines)) = vent_parser(DATA) {
+            assert_eq!(
+                vec![
+                    Line {
+                        start: Point { x: 0, y: 9 },
+                        end: Point { x: 5, y: 9 }
+                    },
+                    Line {
+                        start: Point { x: 9, y: 4 },
+                        end: Point { x: 3, y: 4 }
+                    },
+                    Line {
+                        start: Point { x: 2, y: 2 },
+                        end: Point { x: 2, y: 1 }
+                    },
+                    Line {
+                        start: Point { x: 7, y: 0 },
+                        end: Point { x: 7, y: 4 }
+                    },
+                    Line {
+                        start: Point { x: 0, y: 9 },
+                        end: Point { x: 2, y: 9 }
+                    },
+                    Line {
+                        start: Point { x: 3, y: 4 },
+                        end: Point { x: 1, y: 4 }
+                    },
+                ],
+                lines
+                    .into_iter()
+                    .filter(|l| !l.is_diagonal())
+                    .collect::<Vec<_>>()
+            )
+        }
+    }
+
+    #[test]
+    fn it_computes_trajectory() {
+        use super::Trajectory::*;
+
+        if let Ok((_, lines)) = vent_parser(DATA) {
+            assert_eq!(
+                vec![East, West, North, South, East, West,],
+                lines
+                    .into_iter()
+                    .filter_map(|l| (!l.is_diagonal()).then(|| l.traj()))
+                    .collect::<Vec<_>>()
+            )
+        }
+    }
+
+    #[test]
+    fn it_creates_vectors_of_points_from_line_definitions() {
+        if let Ok((_, lines)) = vent_parser(DATA) {
+            let expected = vec![
+                vec![
+                    Point { x: 0, y: 9 },
+                    Point { x: 1, y: 9 },
+                    Point { x: 2, y: 9 },
+                    Point { x: 3, y: 9 },
+                    Point { x: 4, y: 9 },
+                    Point { x: 5, y: 9 },
+                ],
+                vec![
+                    Point { x: 3, y: 4 },
+                    Point { x: 4, y: 4 },
+                    Point { x: 5, y: 4 },
+                    Point { x: 6, y: 4 },
+                    Point { x: 7, y: 4 },
+                    Point { x: 8, y: 4 },
+                    Point { x: 9, y: 4 },
+                ],
+                vec![Point { x: 2, y: 1 }, Point { x: 2, y: 2 }],
+                vec![
+                    Point { x: 7, y: 0 },
+                    Point { x: 7, y: 1 },
+                    Point { x: 7, y: 2 },
+                    Point { x: 7, y: 3 },
+                    Point { x: 7, y: 4 },
+                ],
+                vec![
+                    Point { x: 0, y: 9 },
+                    Point { x: 1, y: 9 },
+                    Point { x: 2, y: 9 },
+                ],
+                vec![
+                    Point { x: 1, y: 4 },
+                    Point { x: 2, y: 4 },
+                    Point { x: 3, y: 4 },
+                ],
+            ];
+
+            for (exp, line) in zip(expected, lines.iter().filter(|l| !l.is_diagonal())) {
+                assert_eq!(exp, line.points().collect::<Vec<_>>())
+            }
+        }
+    }
+
+    #[test]
+    fn it_calculates_dangerous_points() {
+        // assert_eq!(5, dangerous_points(DATA));
+    }
 }
