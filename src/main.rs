@@ -53,10 +53,15 @@ fn day_four() {
 fn day_five() {
     let data = include_str!("../data/hydrothermal_venture.txt");
 
-    println!("Day 5: Hydrothermal Venture");
+    println!("Day 5: Hydrothermal Venture Part 1");
     println!(
         "{}",
         hydrothermal_venture::right_angle_dangerous_points(data).unwrap()
+    );
+    println!("Day 5: Hydrothermal Venture Part 2");
+    println!(
+        "{}",
+        hydrothermal_venture::all_dangerous_points(data).unwrap()
     );
 }
 

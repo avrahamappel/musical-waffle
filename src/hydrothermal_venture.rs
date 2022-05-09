@@ -178,11 +178,17 @@ pub fn right_angle_dangerous_points(
     data: &str,
 ) -> Result<usize, nom::Err<nom::error::Error<&str>>> {
     let (_, lines) = vent_parser(data)?;
-    let danger = dangerous_points(lines.into_iter().filter(|l| (!l.is_diagonal())));
+    let danger = dangerous_points(lines.into_iter().filter(|l| !l.is_diagonal()));
 
     Ok(danger)
 }
-// pub fn all_dangerous_points() {}
+
+pub fn all_dangerous_points(data: &str) -> Result<usize, nom::Err<nom::error::Error<&str>>> {
+    let (_, lines) = vent_parser(data)?;
+    let danger = dangerous_points(lines.into_iter());
+
+    Ok(danger)
+}
 
 #[cfg(test)]
 mod tests {
@@ -433,5 +439,10 @@ mod tests {
     #[test]
     fn it_calculates_dangerous_points() {
         assert_eq!(Ok(5), right_angle_dangerous_points(DATA));
+    }
+
+    #[test]
+    fn it_calculates_all_dangerous_points() {
+        assert_eq!(Ok(12), all_dangerous_points(DATA))
     }
 }
