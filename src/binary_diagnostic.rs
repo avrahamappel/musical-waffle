@@ -1,16 +1,8 @@
 use std::cmp::Ordering;
 
-type BitList = Vec<u32>;
+use crate::utils::div_ceil;
 
-fn div_ceil(a: u32, b: u32) -> u32 {
-    let d = a / b;
-    let r = a % b;
-    if r > 0 && b > 0 {
-        d + 1
-    } else {
-        d
-    }
-}
+type BitList = Vec<u32>;
 
 fn strings_to_bit_lists<I>(data: I) -> Vec<BitList>
 where

@@ -6,6 +6,7 @@ mod dive;
 mod giant_squid;
 mod hydrothermal_venture;
 mod sonar_sweep;
+mod utils;
 
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
     BufReader::new(File::open(path).unwrap())

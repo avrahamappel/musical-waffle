@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::iter::{once, repeat, zip};
+use std::iter::{from_fn, once, repeat, zip};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -9,6 +9,8 @@ use nom::combinator::{eof, map, map_res};
 use nom::multi::many0;
 use nom::sequence::{separated_pair, terminated};
 use nom::{IResult, Parser};
+
+use crate::utils::DivCeil;
 
 /// This is totally overengineered, but it was worth it. I learned a TON about nom parser
 /// combinators, and about working in 2d space.
@@ -103,12 +105,63 @@ impl Line {
             Trajectory::West => Box::new(
                 zip(self.end.x..=self.start.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
             ),
-            Trajectory::Northwest => todo!(),
-            Trajectory::Northeast => todo!(),
-            Trajectory::Southeast => todo!(),
-            Trajectory::Southwest => todo!(),
+            Trajectory::Northwest => Box::new(
+                diagonal_ranges(self.end.x, self.start.x, self.end.y, self.start.y)
+                    .map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::Northeast => Box::new(
+                diagonal_ranges(self.start.x, self.end.x, self.end.y, self.start.y)
+                    .map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::Southeast => Box::new(
+                diagonal_ranges(self.start.x, self.end.x, self.start.y, self.end.y)
+                    .map(|(x, y)| Point { x, y }),
+            ),
+            Trajectory::Southwest => Box::new(
+                diagonal_ranges(self.end.x, self.start.x, self.start.y, self.end.y)
+                    .map(|(x, y)| Point { x, y }),
+            ),
         }
     }
+}
+
+#[allow(unstable_name_collisions)]
+fn diagonal_ranges(x1: u32, x2: u32, y1: u32, y2: u32) -> impl Iterator<Item = (u32, u32)> {
+    dbg!(x1, x2, y1, y2);
+    let diff_x = x2 - x1;
+    let diff_y = y2 - y1;
+    dbg!(diff_x, diff_y);
+    let (delta_x, delta_y) = match diff_x.cmp(&diff_y) {
+        Ordering::Equal => (1, 1),
+        Ordering::Greater => (1, diff_x.div_ceil(diff_y)),
+        Ordering::Less => (diff_y.div_ceil(diff_x), 1),
+    };
+    dbg!(delta_x, delta_y);
+
+    zip(
+        range_stretched(x1, x2, delta_x),
+        range_stretched(y1, y2, delta_y),
+    )
+    .inspect(|x| println!("{:?}", x))
+}
+
+fn range_stretched(start: u32, end: u32, delta: u32) -> impl Iterator<Item = u32> {
+    dbg!(start, end, delta);
+    let mut i = (end - start) % delta;
+    let mut range = start..=end;
+    let mut cache = range.next();
+
+    from_fn(move || {
+        if i == delta {
+            i = 0;
+            cache = range.next();
+        }
+
+        i += 1;
+        dbg!(i);
+        dbg!(cache);
+        cache
+    })
 }
 
 fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
@@ -276,6 +329,31 @@ mod tests {
                     Northeast
                 ],
                 lines.into_iter().map(|l| l.traj()).collect::<Vec<_>>()
+            )
+        }
+    }
+
+    /// This is out of the scope of the problem, but I wanted to see if I could do it without
+    /// remembering any high school algebra
+    #[test]
+    fn it_calculates_diagonal_ranges_of_any_angle() {
+        if let Ok((_, line)) = Line::parse("0,0 -> 3,5") {
+            // 1000
+            // 0100
+            // 0100
+            // 0010
+            // 0010
+            // 0001
+            assert_eq!(
+                vec![
+                    Point { x: 0, y: 0 },
+                    Point { x: 1, y: 1 },
+                    Point { x: 1, y: 2 },
+                    Point { x: 2, y: 3 },
+                    Point { x: 2, y: 4 },
+                    Point { x: 3, y: 5 },
+                ],
+                line.points().collect::<Vec<_>>()
             )
         }
     }
