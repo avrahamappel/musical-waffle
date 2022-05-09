@@ -105,63 +105,53 @@ impl Line {
             Trajectory::West => Box::new(
                 zip(self.end.x..=self.start.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
             ),
-            Trajectory::Northwest => Box::new(
-                diagonal_ranges(self.end.x, self.start.x, self.end.y, self.start.y)
-                    .map(|(x, y)| Point { x, y }),
-            ),
-            Trajectory::Northeast => Box::new(
-                diagonal_ranges(self.start.x, self.end.x, self.end.y, self.start.y)
-                    .map(|(x, y)| Point { x, y }),
-            ),
-            Trajectory::Southeast => Box::new(
+            _ => Box::new(
                 diagonal_ranges(self.start.x, self.end.x, self.start.y, self.end.y)
-                    .map(|(x, y)| Point { x, y }),
-            ),
-            Trajectory::Southwest => Box::new(
-                diagonal_ranges(self.end.x, self.start.x, self.start.y, self.end.y)
                     .map(|(x, y)| Point { x, y }),
             ),
         }
     }
 }
 
+// These methods are starting to get pretty gross
 #[allow(unstable_name_collisions)]
 fn diagonal_ranges(x1: u32, x2: u32, y1: u32, y2: u32) -> impl Iterator<Item = (u32, u32)> {
-    dbg!(x1, x2, y1, y2);
-    let diff_x = x2 - x1;
-    let diff_y = y2 - y1;
-    dbg!(diff_x, diff_y);
+    let rev_x = x1 > x2;
+    let rev_y = y1 > y2;
+    let diff_x = x2.abs_diff(x1);
+    let diff_y = y2.abs_diff(y1);
     let (delta_x, delta_y) = match diff_x.cmp(&diff_y) {
         Ordering::Equal => (1, 1),
         Ordering::Greater => (1, diff_x.div_ceil(diff_y)),
         Ordering::Less => (diff_y.div_ceil(diff_x), 1),
     };
-    dbg!(delta_x, delta_y);
 
     zip(
-        range_stretched(x1, x2, delta_x),
-        range_stretched(y1, y2, delta_y),
+        range_stretched(x1, x2, delta_x, rev_x),
+        range_stretched(y1, y2, delta_y, rev_y),
     )
-    .inspect(|x| println!("{:?}", x))
 }
 
-fn range_stretched(start: u32, end: u32, delta: u32) -> impl Iterator<Item = u32> {
-    dbg!(start, end, delta);
-    let mut i = (end - start) % delta;
-    let mut range = start..=end;
+fn range_stretched(start: u32, end: u32, delta: u32, rev: bool) -> Box<dyn Iterator<Item = u32>> {
+    let mut i = (end.abs_diff(start)) % delta;
+    let mut range = if rev { end..=start } else { start..=end };
     let mut cache = range.next();
 
-    from_fn(move || {
+    let iter = from_fn(move || {
         if i == delta {
             i = 0;
             cache = range.next();
         }
 
         i += 1;
-        dbg!(i);
-        dbg!(cache);
         cache
-    })
+    });
+
+    if rev {
+        Box::new(iter.collect::<Vec<_>>().into_iter().rev())
+    } else {
+        Box::new(iter)
+    }
 }
 
 fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
