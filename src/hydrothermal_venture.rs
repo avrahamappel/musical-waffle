@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::iter::{from_fn, once, repeat, zip};
+use std::iter::{from_fn, repeat, zip};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -39,19 +39,6 @@ impl Point {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum Trajectory {
-    None,
-    North,
-    South,
-    East,
-    West,
-    Northeast,
-    Northwest,
-    Southeast,
-    Southwest,
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct Line {
     start: Point,
@@ -70,46 +57,9 @@ impl Line {
         self.start.x != self.end.x && self.start.y != self.end.y
     }
 
-    fn traj(&self) -> Trajectory {
-        match self.start.x.cmp(&self.end.x) {
-            Ordering::Equal => match self.start.y.cmp(&self.end.y) {
-                Ordering::Equal => Trajectory::None,
-                Ordering::Greater => Trajectory::North,
-                Ordering::Less => Trajectory::South,
-            },
-            Ordering::Greater => match self.start.y.cmp(&self.end.y) {
-                Ordering::Equal => Trajectory::West,
-                Ordering::Greater => Trajectory::Northwest,
-                Ordering::Less => Trajectory::Southwest,
-            },
-            Ordering::Less => match self.start.y.cmp(&self.end.y) {
-                Ordering::Equal => Trajectory::East,
-                Ordering::Greater => Trajectory::Northeast,
-                Ordering::Less => Trajectory::Southeast,
-            },
-        }
-    }
-
-    fn points(&self) -> Box<dyn Iterator<Item = Point>> {
-        match self.traj() {
-            Trajectory::None => Box::new(once(self.start)),
-            Trajectory::North => Box::new(
-                zip(repeat(self.start.x), self.end.y..=self.start.y).map(|(x, y)| Point { x, y }),
-            ),
-            Trajectory::South => Box::new(
-                zip(repeat(self.start.x), self.start.y..=self.end.y).map(|(x, y)| Point { x, y }),
-            ),
-            Trajectory::East => Box::new(
-                zip(self.start.x..=self.end.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
-            ),
-            Trajectory::West => Box::new(
-                zip(self.end.x..=self.start.x, repeat(self.start.y)).map(|(x, y)| Point { x, y }),
-            ),
-            _ => Box::new(
-                diagonal_ranges(self.start.x, self.end.x, self.start.y, self.end.y)
-                    .map(|(x, y)| Point { x, y }),
-            ),
-        }
+    fn points(&self) -> impl Iterator<Item = Point> {
+        diagonal_ranges(self.start.x, self.end.x, self.start.y, self.end.y)
+            .map(|(x, y)| Point { x, y })
     }
 }
 
@@ -117,10 +67,11 @@ impl Line {
 fn diagonal_ranges(x1: u32, x2: u32, y1: u32, y2: u32) -> impl Iterator<Item = (u32, u32)> {
     let diff_x = x2.abs_diff(x1);
     let diff_y = y2.abs_diff(y1);
+
     let (delta_x, delta_y) = match diff_x.cmp(&diff_y) {
-        Ordering::Equal => (1, 1),
-        Ordering::Greater => (1, diff_x.div_ceil(diff_y)),
-        Ordering::Less => (diff_y.div_ceil(diff_x), 1),
+        Ordering::Greater if diff_y != 0 => (1, diff_x.div_ceil(diff_y)),
+        Ordering::Less if diff_x != 0 => (diff_y.div_ceil(diff_x), 1),
+        _ => (1, 1),
     };
 
     zip(
@@ -337,21 +288,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn it_computes_trajectory() {
-        use super::Trajectory::*;
-
-        if let Ok((_, lines)) = vent_parser(DATA) {
-            assert_eq!(
-                vec![
-                    East, Southwest, West, North, South, Northwest, East, West, Southeast,
-                    Northeast
-                ],
-                lines.into_iter().map(|l| l.traj()).collect::<Vec<_>>()
-            )
-        }
-    }
-
     /// This is out of the scope of the problem, but I wanted to see if I could do it without
     /// remembering any high school algebra
     #[test]
@@ -401,15 +337,15 @@ mod tests {
                     Point { x: 0, y: 8 },
                 ],
                 vec![
-                    Point { x: 3, y: 4 },
-                    Point { x: 4, y: 4 },
-                    Point { x: 5, y: 4 },
-                    Point { x: 6, y: 4 },
-                    Point { x: 7, y: 4 },
-                    Point { x: 8, y: 4 },
                     Point { x: 9, y: 4 },
+                    Point { x: 8, y: 4 },
+                    Point { x: 7, y: 4 },
+                    Point { x: 6, y: 4 },
+                    Point { x: 5, y: 4 },
+                    Point { x: 4, y: 4 },
+                    Point { x: 3, y: 4 },
                 ],
-                vec![Point { x: 2, y: 1 }, Point { x: 2, y: 2 }],
+                vec![Point { x: 2, y: 2 }, Point { x: 2, y: 1 }],
                 vec![
                     Point { x: 7, y: 0 },
                     Point { x: 7, y: 1 },
@@ -430,9 +366,9 @@ mod tests {
                     Point { x: 2, y: 9 },
                 ],
                 vec![
-                    Point { x: 1, y: 4 },
-                    Point { x: 2, y: 4 },
                     Point { x: 3, y: 4 },
+                    Point { x: 2, y: 4 },
+                    Point { x: 1, y: 4 },
                 ],
                 vec![
                     Point { x: 0, y: 0 },
