@@ -113,11 +113,8 @@ impl Line {
     }
 }
 
-// These methods are starting to get pretty gross
 #[allow(unstable_name_collisions)]
 fn diagonal_ranges(x1: u32, x2: u32, y1: u32, y2: u32) -> impl Iterator<Item = (u32, u32)> {
-    let rev_x = x1 > x2;
-    let rev_y = y1 > y2;
     let diff_x = x2.abs_diff(x1);
     let diff_y = y2.abs_diff(y1);
     let (delta_x, delta_y) = match diff_x.cmp(&diff_y) {
@@ -127,31 +124,57 @@ fn diagonal_ranges(x1: u32, x2: u32, y1: u32, y2: u32) -> impl Iterator<Item = (
     };
 
     zip(
-        range_stretched(x1, x2, delta_x, rev_x),
-        range_stretched(y1, y2, delta_y, rev_y),
+        make_range_stretched(x1, x2, delta_x),
+        make_range_stretched(y1, y2, delta_y),
     )
 }
 
-fn range_stretched(start: u32, end: u32, delta: u32, rev: bool) -> Box<dyn Iterator<Item = u32>> {
-    let mut i = (end.abs_diff(start)) % delta;
-    let mut range = if rev { end..=start } else { start..=end };
-    let mut cache = range.next();
+fn make_range_stretched(start: u32, end: u32, delta: u32) -> Box<dyn Iterator<Item = u32>> {
+    let range = range_multidirectional(start, end);
 
-    let iter = from_fn(move || {
+    if delta == 1 {
+        return Box::new(range);
+    }
+
+    Box::new(range_stretched(range, (end.abs_diff(start)) % delta, delta))
+}
+
+fn range_stretched<I, T>(mut iter: I, mut i: u32, delta: u32) -> impl Iterator<Item = T>
+where
+    I: Iterator<Item = T>,
+    T: Copy,
+{
+    let mut cache = iter.next();
+
+    from_fn(move || {
         if i == delta {
             i = 0;
-            cache = range.next();
+            cache = iter.next();
         }
 
         i += 1;
         cache
-    });
+    })
+}
 
-    if rev {
-        Box::new(iter.collect::<Vec<_>>().into_iter().rev())
-    } else {
-        Box::new(iter)
+fn range_multidirectional(start: u32, end: u32) -> Box<dyn Iterator<Item = u32>> {
+    match start.cmp(&end) {
+        Ordering::Equal => Box::new(repeat(start)),
+        Ordering::Greater => Box::new(range_desc_incl(start, end)),
+        Ordering::Less => Box::new(start..=end),
     }
+}
+
+fn range_desc_incl(start: u32, end: u32) -> impl Iterator<Item = u32> {
+    let mut i = start + 1;
+    from_fn(move || {
+        i = i.checked_sub(1)?;
+        if i < end {
+            None
+        } else {
+            Some(i)
+        }
+    })
 }
 
 fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
