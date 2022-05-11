@@ -4,6 +4,8 @@
 use std::fs::{read_to_string, File};
 use std::io::{BufRead, BufReader};
 
+use async_std::task::block_on;
+
 mod binary_diagnostic;
 mod dive;
 mod giant_squid;
@@ -72,10 +74,12 @@ fn day_five() {
 fn day_six() {
     let data = include_str!("../data/lanternfish.txt");
 
-    println!("Day 6: Lanternfish Part 1");
-    println!("{}", lanternfish::simulate_fish(data, 80).unwrap());
-    println!("Day 6: Lanternfish Part 2");
-    println!("{}", lanternfish::simulate_fish(data, 256).unwrap());
+    block_on(async {
+        println!("Day 6: Lanternfish Part 1");
+        println!("{}", lanternfish::simulate_fish(data, 80).await.unwrap());
+        println!("Day 6: Lanternfish Part 2");
+        println!("{}", lanternfish::simulate_fish(data, 256).await.unwrap());
+    });
 }
 
 fn main() {

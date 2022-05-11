@@ -6,5 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# Async version of the Rust standard library
+async-std = "1.11.0"  
+# An implementation of futures and streams featuring zero allocations, composability, and itera…
+futures = "0.3.21"          
 itertools = "0.8.0"
 nom = "7.1.1"

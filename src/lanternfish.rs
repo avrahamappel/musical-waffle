@@ -1,3 +1,4 @@
+use futures::future::join_all;
 use nom::character::complete::char;
 use nom::character::complete::digit1;
 use nom::combinator::map_res;
@@ -15,7 +16,7 @@ impl Fish {
         Self { age: 8 }
     }
 
-    fn sim_day(mut self) -> (Self, Option<Self>) {
+    async fn sim_day(mut self) -> (Self, Option<Self>) {
         if self.age == 0 {
             self.age = 6;
             (self, Some(Fish::born()))
@@ -55,31 +56,33 @@ impl School {
         }
     }
 
-    fn sim_day(mut self) -> Self {
+    async fn sim_day(mut self) -> Self {
         self.day += 1;
 
         let capacity = self.fish.len() + (self.fish.len() / 6);
-        self.fish = self
-            .fish
+        self.fish = join_all(self.fish.into_iter().map(|f| f.sim_day()))
+            .await
             .into_iter()
-            .fold(Vec::with_capacity(capacity), |mut fs, f| {
-                let (daddy_fish, maybe_baby) = f.sim_day();
-                fs.push(daddy_fish);
-                if let Some(baby_fish) = maybe_baby {
-                    fs.push(baby_fish);
-                }
-                fs
-            });
+            .fold(
+                Vec::with_capacity(capacity),
+                |mut fs, (daddy_fish, maybe_baby)| {
+                    fs.push(daddy_fish);
+                    if let Some(baby_fish) = maybe_baby {
+                        fs.push(baby_fish);
+                    }
+                    fs
+                },
+            );
 
         self
     }
 }
 
-pub fn simulate_fish(data: &str, days: u32) -> Result<usize, Error<&str>> {
+pub async fn simulate_fish(data: &str, days: u32) -> Result<usize, Error<&str>> {
     let (_, fish) = separated_list1(char(','), map_res(digit1, str::parse::<u32>))(data)?;
     let mut school = School::new(&fish);
     for _ in 0..days {
-        school = school.sim_day();
+        school = school.sim_day().await;
     }
     Ok(school.fish.len())
 }
@@ -88,8 +91,11 @@ pub fn simulate_fish(data: &str, days: u32) -> Result<usize, Error<&str>> {
 mod tests {
     extern crate test;
 
-    use super::*;
+    use async_std::task::block_on;
+    use futures::FutureExt;
     use test::Bencher;
+
+    use super::*;
 
     const DATA: &str = "3,4,3,1,2";
 
@@ -98,8 +104,13 @@ mod tests {
         let dataset = [("small", 18, 26), ("big", 80, 5_934)];
 
         for (tag, days, expected) in dataset {
-            println!("{}", tag);
-            assert_eq!(expected, simulate_fish(DATA, days)?);
+            block_on(simulate_fish(DATA, days).then(|result| async move {
+                if let Ok(actual) = result {
+                    println!("{}", tag);
+                    assert_eq!(expected, actual);
+                }
+                result
+            }))?;
         }
         Ok(())
     }
@@ -111,20 +122,20 @@ mod tests {
             .map(str::parse)
             .filter_map(Result::ok)
             .collect::<Vec<_>>()[..];
-        b.iter(|| School::new(data).sim_day())
+        b.iter(|| block_on(School::new(data).sim_day()))
     }
 
     #[bench]
     fn benchmark_simulated_fish_1_day(b: &mut Bencher) {
-        b.iter(|| simulate_fish(DATA, 1));
+        b.iter(|| block_on(simulate_fish(DATA, 1)));
     }
 
     #[bench]
     fn benchmark_simulated_fish_10_days(b: &mut Bencher) {
-        b.iter(|| simulate_fish(DATA, 10));
+        b.iter(|| block_on(simulate_fish(DATA, 10)));
     }
     #[bench]
     fn benchmark_simulated_fish_100_days(b: &mut Bencher) {
-        b.iter(|| simulate_fish(DATA, 100));
+        b.iter(|| block_on(simulate_fish(DATA, 100)));
     }
 }
