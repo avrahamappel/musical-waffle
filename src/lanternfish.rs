@@ -57,14 +57,19 @@ impl School {
 
     fn sim_day(mut self) -> Self {
         self.day += 1;
-        self.fish = self.fish.into_iter().fold(Vec::new(), |mut fs, f| {
-            let (daddy_fish, maybe_baby) = f.sim_day();
-            fs.push(daddy_fish);
-            if let Some(baby_fish) = maybe_baby {
-                fs.push(baby_fish);
-            }
-            fs
-        });
+
+        let capacity = self.fish.len() + (self.fish.len() / 6);
+        self.fish = self
+            .fish
+            .into_iter()
+            .fold(Vec::with_capacity(capacity), |mut fs, f| {
+                let (daddy_fish, maybe_baby) = f.sim_day();
+                fs.push(daddy_fish);
+                if let Some(baby_fish) = maybe_baby {
+                    fs.push(baby_fish);
+                }
+                fs
+            });
 
         self
     }
@@ -74,7 +79,6 @@ pub fn simulate_fish(data: &str, days: u32) -> Result<usize, Error<&str>> {
     let (_, fish) = separated_list1(char(','), map_res(digit1, str::parse::<u32>))(data)?;
     let mut school = School::new(&fish);
     for _ in 0..days {
-        println!("{:?}", &school);
         school = school.sim_day();
     }
     Ok(school.fish.len())
