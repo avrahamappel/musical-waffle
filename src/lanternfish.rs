@@ -101,6 +101,16 @@ mod tests {
     }
 
     #[bench]
+    fn bench_school_sim_day(b: &mut Bencher) {
+        let data = &DATA
+            .split(',')
+            .map(str::parse)
+            .filter_map(Result::ok)
+            .collect::<Vec<_>>()[..];
+        b.iter(|| School::new(data).sim_day())
+    }
+
+    #[bench]
     fn benchmark_simulated_fish_1_day(b: &mut Bencher) {
         b.iter(|| simulate_fish(DATA, 1));
     }
