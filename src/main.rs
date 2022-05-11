@@ -1,3 +1,6 @@
+#![feature(iter_intersperse)]
+#![feature(test)]
+
 use std::fs::{read_to_string, File};
 use std::io::{BufRead, BufReader};
 
@@ -5,6 +8,7 @@ mod binary_diagnostic;
 mod dive;
 mod giant_squid;
 mod hydrothermal_venture;
+mod lanternfish;
 mod sonar_sweep;
 mod utils;
 
@@ -65,10 +69,20 @@ fn day_five() {
     );
 }
 
+fn day_six() {
+    let data = include_str!("../data/lanternfish.txt");
+
+    println!("Day 6: Lanternfish Part 1");
+    println!("{}", lanternfish::simulate_fish(data, 80).unwrap());
+    println!("Day 6: Lanternfish Part 2");
+    println!("{}", lanternfish::simulate_fish(data, 256).unwrap());
+}
+
 fn main() {
     day_one();
     day_two();
     day_three();
     day_four();
     day_five();
+    day_six();
 }
