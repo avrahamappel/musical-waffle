@@ -10,6 +10,7 @@ mod giant_squid;
 mod hydrothermal_venture;
 mod lanternfish;
 mod sonar_sweep;
+mod the_treachery_of_whales;
 mod utils;
 
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
