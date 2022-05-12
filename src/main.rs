@@ -79,6 +79,21 @@ fn day_six() {
     println!("{}", lanternfish::simulate_fish(data, 256).unwrap());
 }
 
+fn day_seven() {
+    let data = include_str!("../data/the_treachery_of_whales.txt");
+
+    println!("Day 7: The Treachery of Whales Part 1");
+    println!(
+        "{}",
+        the_treachery_of_whales::crab_alignment_constant(data).unwrap()
+    );
+    println!("Day 7: The Treachery of Whales Part 2");
+    println!(
+        "{}",
+        the_treachery_of_whales::crab_alignment_increasing(data).unwrap()
+    );
+}
+
 fn main() {
     day_one();
     day_two();
@@ -86,4 +101,5 @@ fn main() {
     day_four();
     day_five();
     day_six();
+    day_seven();
 }
