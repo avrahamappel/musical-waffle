@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use nom::character::complete::char;
 use nom::character::complete::digit1;
 use nom::combinator::map_res;
@@ -5,7 +8,15 @@ use nom::multi::separated_list1;
 
 type Error<T> = nom::Err<nom::error::Error<T>>;
 
-#[derive(Debug)]
+fn insert_or_update_count<K>(mut map: HashMap<K, u64>, key: K, count: u64) -> HashMap<K, u64>
+where
+    K: Eq + Hash,
+{
+    map.entry(key).and_modify(|c| *c += count).or_insert(count);
+    map
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 struct Fish {
     age: u32,
 }
@@ -26,62 +37,57 @@ impl Fish {
     }
 }
 
+#[derive(Debug)]
 struct School {
     day: u32,
-    fish: Vec<Fish>,
-}
-
-impl std::fmt::Debug for School {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fish_string = self
-            .fish
-            .iter()
-            .map(|f| f.age.to_string())
-            .intersperse(','.to_string())
-            .collect::<String>();
-        if self.day == 0 {
-            write!(f, "Initial state: {}", fish_string)
-        } else {
-            write!(f, "After {:>2} days: {}", self.day, fish_string)
-        }
-    }
+    fish: HashMap<Fish, u64>,
 }
 
 impl School {
     fn new(fish: &[u32]) -> Self {
         Self {
             day: 0,
-            fish: fish.into_iter().map(|i| Fish { age: *i }).collect(),
+            fish: fish
+                .into_iter()
+                .map(|i| Fish { age: *i })
+                .fold(HashMap::with_capacity(9), |hm, f| {
+                    insert_or_update_count(hm, f, 1)
+                }),
         }
     }
 
     fn sim_day(mut self) -> Self {
         self.day += 1;
-
-        let capacity = self.fish.len() + (self.fish.len() / 6);
         self.fish = self
             .fish
             .into_iter()
-            .fold(Vec::with_capacity(capacity), |mut fs, f| {
+            .fold(HashMap::with_capacity(9), |mut fs, (f, count)| {
                 let (daddy_fish, maybe_baby) = f.sim_day();
-                fs.push(daddy_fish);
+
+                fs = insert_or_update_count(fs, daddy_fish, count);
+
                 if let Some(baby_fish) = maybe_baby {
-                    fs.push(baby_fish);
+                    fs = insert_or_update_count(fs, baby_fish, count);
                 }
+
                 fs
             });
 
         self
     }
+
+    fn total_fish(&self) -> u64 {
+        self.fish.iter().map(|(_, c)| c).sum()
+    }
 }
 
-pub fn simulate_fish(data: &str, days: u32) -> Result<usize, Error<&str>> {
+pub fn simulate_fish(data: &str, days: u32) -> Result<u64, Error<&str>> {
     let (_, fish) = separated_list1(char(','), map_res(digit1, str::parse::<u32>))(data)?;
     let mut school = School::new(&fish);
     for _ in 0..days {
         school = school.sim_day();
     }
-    Ok(school.fish.len())
+    Ok(school.total_fish())
 }
 
 #[cfg(test)]
@@ -95,7 +101,11 @@ mod tests {
 
     #[test]
     fn test_simulate_fish() -> Result<(), Error<&'static str>> {
-        let dataset = [("small", 18, 26), ("big", 80, 5_934)];
+        let dataset = [
+            ("small", 18, 26),
+            ("big", 80, 5_934),
+            ("huge", 256, 26_984_457_539),
+        ];
 
         for (tag, days, expected) in dataset {
             println!("{}", tag);
