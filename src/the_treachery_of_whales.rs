@@ -13,6 +13,14 @@ pub enum Error<'a, 'b> {
     CalcError(&'b str),
 }
 
+fn sum_numbers_until(num: u32) -> u32 {
+    let float_num: f64 = num.into();
+    let avg = (1.0 + float_num) / 2.0;
+    // This should be the same as adding all numbers until u32, so we shouldn't get a decimal here
+    // and casting back should be fine
+    (avg * float_num) as u32
+}
+
 fn crab_alignment<F, G>(data: &str, fuel_calc: F) -> Result<u32, Error>
 where
     F: Fn(u32) -> G,
@@ -53,11 +61,7 @@ pub fn crab_alignment_constant(data: &str) -> Result<u32, Error> {
 
 pub fn crab_alignment_increasing(data: &str) -> Result<u32, Error> {
     crab_alignment(data, |pos| {
-        move |(p, c)| {
-            let diff = p.abs_diff(pos);
-            let total_fuel: u32 = (1..=diff).sum();
-            total_fuel * c
-        }
+        move |(p, c)| sum_numbers_until(p.abs_diff(pos)) * c
     })
 }
 
