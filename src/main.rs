@@ -9,6 +9,7 @@ mod dive;
 mod giant_squid;
 mod hydrothermal_venture;
 mod lanternfish;
+mod seven_segment_search;
 mod sonar_sweep;
 mod the_treachery_of_whales;
 mod utils;
@@ -94,6 +95,13 @@ fn day_seven() {
     );
 }
 
+fn day_eight() {
+    let data = include_str!("../data/seven_segment_search.txt");
+
+    println!("Day 8: Seven Segment Search");
+    println!("{}", seven_segment_search::unique_segment_total(data));
+}
+
 fn main() {
     day_one();
     day_two();
@@ -102,4 +110,5 @@ fn main() {
     day_five();
     day_six();
     day_seven();
+    day_eight();
 }
