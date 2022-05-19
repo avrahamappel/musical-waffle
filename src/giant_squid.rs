@@ -11,7 +11,7 @@ struct Board {
 impl std::fmt::Debug for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for x in 0..BOARD_LENGTH {
-            write!(f, "\n")?;
+            writeln!(f)?;
             for y in 0..BOARD_LENGTH {
                 if self.circled.contains(&(x, y)) {
                     write!(f, "({:>2}) ", self.grid[x][y])?;
@@ -19,7 +19,7 @@ impl std::fmt::Debug for Board {
                     write!(f, " {:>2}  ", self.grid[x][y])?;
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -92,7 +92,7 @@ impl Boards {
     where
         I: Iterator<Item = String>,
     {
-        let boards = data.map(|b| Board::new(b)).collect();
+        let boards = data.map(Board::new).collect();
         Self { boards }
     }
 

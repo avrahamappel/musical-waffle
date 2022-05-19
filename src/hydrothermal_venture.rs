@@ -31,7 +31,7 @@ struct Point {
 }
 
 impl Point {
-    fn parse<'a>(input: &'a str) -> IResult<&'a str, Self> {
+    fn parse(input: &str) -> IResult<&str, Self> {
         map(
             separated_twins(|| map_res(digit1, str::parse), char(',')),
             |(x, y)| Self { x, y },
@@ -46,7 +46,7 @@ struct Line {
 }
 
 impl Line {
-    fn parse<'a>(input: &'a str) -> IResult<&'a str, Self> {
+    fn parse(input: &str) -> IResult<&str, Self> {
         map(
             separated_twins(|| Point::parse, tag(" -> ")),
             |(start, end)| Line { start, end },
@@ -128,7 +128,7 @@ fn range_desc_incl(start: u32, end: u32) -> impl Iterator<Item = u32> {
     })
 }
 
-fn vent_parser<'a>(input: &'a str) -> IResult<&'a str, Vec<Line>> {
+fn vent_parser(input: &str) -> IResult<&str, Vec<Line>> {
     many0(terminated(Line::parse, alt((line_ending, eof))))(input)
 }
 

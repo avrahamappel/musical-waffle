@@ -27,7 +27,7 @@ where
     G: Fn((&u32, &u32)) -> u32,
 {
     let (_, crab_positions) = separated_list1(char(','), map_res(digit1, str::parse))(data)
-        .or_else(|e| Err(Error::ParseError(e)))?;
+        .map_err(Error::ParseError)?;
 
     let crab_count = crab_positions.len();
 
@@ -40,8 +40,8 @@ where
                 hm
             });
 
-    let possible_alignments = mapped_crab_positions.keys().min().map(|x| *x).unwrap_or(0)
-        ..=mapped_crab_positions.keys().max().map(|x| *x).unwrap_or(0);
+    let possible_alignments = mapped_crab_positions.keys().min().copied().unwrap_or(0)
+        ..=mapped_crab_positions.keys().max().copied().unwrap_or(0);
 
     let results = possible_alignments
         .map(|pos| mapped_crab_positions.iter().map(fuel_calc(pos)).sum())

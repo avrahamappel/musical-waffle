@@ -34,10 +34,7 @@ fn most_common_bit(data: &Vec<BitList>, position: usize) -> u32 {
 }
 
 fn single_most_common_bitlist(data: Vec<BitList>, position: Option<usize>) -> BitList {
-    let p = match position {
-        Some(p) => p,
-        None => 0,
-    };
+    let p = position.unwrap_or(0);
 
     if data.len() == 1 {
         return data[0].to_owned();
@@ -71,10 +68,7 @@ fn least_common_bit(data: &Vec<BitList>, position: usize) -> u32 {
 }
 
 fn single_least_common_bitlist(data: Vec<BitList>, position: Option<usize>) -> BitList {
-    let p = match position {
-        Some(p) => p,
-        None => 0,
-    };
+    let p = position.unwrap_or(0);
 
     if data.len() == 1 {
         return data[0].to_owned();
@@ -95,7 +89,7 @@ fn bin_to_dec(bin: &BitList) -> u32 {
         return 0;
     }
 
-    bin.into_iter()
+    bin.iter()
         .map(|u| *u as u32)
         .reduce(|res, b| (res * 2) + b)
         .unwrap()
@@ -118,7 +112,7 @@ where
 {
     let data = strings_to_bit_lists(data);
     let oxygen_gen_rating = single_most_common_bitlist(data.clone(), None);
-    let co2_scrubber_rating = single_least_common_bitlist(data.clone(), None);
+    let co2_scrubber_rating = single_least_common_bitlist(data, None);
 
     bin_to_dec(&oxygen_gen_rating) * bin_to_dec(&co2_scrubber_rating)
 }

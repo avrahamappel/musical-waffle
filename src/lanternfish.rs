@@ -48,7 +48,7 @@ impl School {
         Self {
             day: 0,
             fish: fish
-                .into_iter()
+                .iter()
                 .map(|i| Fish { age: *i })
                 .fold(HashMap::with_capacity(9), |hm, f| {
                     insert_or_update_count(hm, f, 1)
