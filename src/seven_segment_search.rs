@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use itertools::Itertools;
 use Signal::*;
 
 macro_rules! log {
@@ -75,9 +76,9 @@ fn signal_patterns<'a>() -> HashMap<&'a str, Vec<Signal>> {
 }
 
 fn solve(
-    patterns: Vec<Pattern>,
+    mut patterns: Vec<Pattern>,
     mut solved: HashMap<DisplayChar, Signal>,
-    mut possibilities: Vec<(Pattern, DisplayChar, Vec<Signal>)>,
+    mut possibilities: Vec<(DisplayChar, Vec<Signal>, Pattern)>,
 ) -> HashMap<DisplayChar, Signal> {
     // If we're done, we're done
     if patterns.is_empty() {
@@ -85,44 +86,63 @@ fn solve(
         return solved;
     }
 
-    // get next pattern
-    let pattern = patterns[0].to_owned();
+    let pattern = patterns.pop().unwrap().to_owned();
+    dbg!(&pattern);
 
     // find first signal list that matches the length
     // TODO pass this in
     let signal_patterns = signal_patterns();
-    let len_matched_sig_pats = signal_patterns
+    let mut len_matched_sig_pats = signal_patterns
         .iter()
         .map(|(_, v)| v)
         .filter(|v| v.len() == pattern.len())
         .collect::<Vec<_>>();
 
+    dbg!(&len_matched_sig_pats);
+
     // if anything is already known etc.
-    let guesses = pattern.clone();
+    let guesses: Vec<&DisplayChar> = pattern
+        .iter()
+        .filter(|p| !solved.contains_key(&p))
+        .collect();
+
+    dbg!(&guesses);
+
+    let signals_to_guess_it: Vec<Signal> = len_matched_sig_pats
+        .pop()
+        .expect("No matching signal patterns for this length")
+        .to_owned()
+        .into_iter()
+        .filter(|s| !solved.values().collect_vec().contains(&s))
+        .collect();
 
     let len = guesses.len();
 
-    // create possibilities list
     for (i, c) in guesses.into_iter().enumerate() {
         possibilities.push((
-            pattern.clone(),
-            c,
-            len_matched_sig_pats[0]
+            *c,
+            signals_to_guess_it
                 .iter()
                 .copied()
                 .cycle()
                 .skip(i)
                 .take(len)
                 .collect(),
+            pattern.clone(),
         ));
     }
 
-    solved = possibilities
-        .iter()
-        .fold(HashMap::with_capacity(len), |mut acc, (_, c, v)| {
+    dbg!(&possibilities);
+
+    solved = possibilities.iter().fold(
+        HashMap::with_capacity(possibilities.len()),
+        |mut acc, (c, v, _)| {
             acc.insert(*c, v[0]);
             acc
-        });
+        },
+    );
+
+    dbg!(&solved);
 
     solve(patterns, solved, possibilities)
 }
@@ -164,23 +184,6 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
 
     #[test]
     fn test_solve() {
-        let mut possibilities = HashMap::with_capacity(7);
-
-        for d in 'a'..='g' {
-            possibilities.insert(
-                d,
-                vec![
-                    Top,
-                    TopRight,
-                    TopLeft,
-                    Middle,
-                    BottomLeft,
-                    BottomRight,
-                    Bottom,
-                ],
-            );
-        }
-
         let mut patterns = vec![
             vec!['a', 'c', 'e', 'd', 'g', 'f', 'b'],
             vec!['c', 'd', 'f', 'b', 'e'],
@@ -193,12 +196,23 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
             vec!['c', 'a', 'g', 'e', 'd', 'b'],
             vec!['a', 'b'],
         ];
-        patterns.sort();
-        let len = patterns.len();
 
-        assert_eq!(
-            HashMap::from([]),
-            solve(patterns, HashMap::new(), Vec::with_capacity(len))
-        )
+        patterns.sort_by(|a, b| b.len().cmp(&a.len()));
+
+        let solved = solve(patterns, HashMap::new(), Vec::new());
+        let expected = HashMap::from([
+            ('a', TopRight),
+            ('b', BottomRight),
+            ('c', Bottom),
+            ('d', Top),
+            ('e', TopLeft),
+            ('f', Middle),
+            ('g', BottomLeft),
+        ]);
+
+        for (k, v) in expected {
+            println!("Testing solved for {:?}", k);
+            assert_eq!(v, *solved.get(&k).unwrap());
+        }
     }
 }
