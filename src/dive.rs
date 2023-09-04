@@ -5,7 +5,7 @@ trait Plotter {
         Self: Sized,
     {
         for instruction in instructions {
-            self = self.apply(Instruction::parse(instruction))
+            self = self.apply(Instruction::parse(&instruction));
         }
 
         self.multiply()
@@ -88,9 +88,9 @@ impl Plotter for AimedSubmarine {
 struct Instruction(Command, u32);
 
 impl Instruction {
-    fn parse(instr: String) -> Self {
-        let cmd = Self::parse_cmd(&instr).expect("Invalid command");
-        let number = Self::parse_num(&instr).expect("Invalid command");
+    fn parse(instr: &str) -> Self {
+        let cmd = Self::parse_cmd(instr).expect("Invalid command");
+        let number = Self::parse_num(instr).expect("Invalid command");
 
         Self(cmd, number)
     }
@@ -145,11 +145,11 @@ forward 2"#;
 
     #[test]
     fn it_plots_the_course_from_instructions() {
-        assert_eq!(150, plot_course(DATA.lines().map(Into::into)))
+        assert_eq!(150, plot_course(DATA.lines().map(Into::into)));
     }
 
     #[test]
     fn it_plots_the_aimed_course_from_instructions() {
-        assert_eq!(900, plot_aimed_course(DATA.lines().map(Into::into)))
+        assert_eq!(900, plot_aimed_course(DATA.lines().map(Into::into)));
     }
 }

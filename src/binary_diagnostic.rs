@@ -1,3 +1,5 @@
+#![allow(clippy::cast_possible_truncation)]
+
 use std::cmp::Ordering;
 
 use crate::utils::div_ceil;
@@ -27,8 +29,7 @@ fn most_common_bit(data: &Vec<BitList>, position: usize) -> u32 {
     let digits_sum: u32 = data.iter().map(|bs| bs[position]).sum();
 
     match digits_sum.cmp(&div_ceil(data.len() as u32, 2)) {
-        Ordering::Greater => 1,
-        Ordering::Equal => 1,
+        Ordering::Greater | Ordering::Equal => 1,
         Ordering::Less => 0,
     }
 }
@@ -37,14 +38,14 @@ fn single_most_common_bitlist(data: Vec<BitList>, position: Option<usize>) -> Bi
     let p = position.unwrap_or(0);
 
     if data.len() == 1 {
-        return data[0].to_owned();
+        return data[0].clone();
     }
 
     let most_common_bit = most_common_bit(&data, p);
 
     single_most_common_bitlist(
         data.into_iter()
-            .filter_map(|b| (b[p] == most_common_bit).then(|| b))
+            .filter_map(|b| (b[p] == most_common_bit).then_some(b))
             .collect(),
         Some(p + 1),
     )
@@ -61,8 +62,7 @@ fn least_common_bit(data: &Vec<BitList>, position: usize) -> u32 {
     let digits_sum: u32 = data.iter().map(|bs| bs[position]).sum();
 
     match digits_sum.cmp(&div_ceil(data.len() as u32, 2)) {
-        Ordering::Greater => 0,
-        Ordering::Equal => 0,
+        Ordering::Greater | Ordering::Equal => 0,
         Ordering::Less => 1,
     }
 }
@@ -71,14 +71,14 @@ fn single_least_common_bitlist(data: Vec<BitList>, position: Option<usize>) -> B
     let p = position.unwrap_or(0);
 
     if data.len() == 1 {
-        return data[0].to_owned();
+        return data[0].clone();
     }
 
     let least_common_bit = least_common_bit(&data, p);
 
     single_least_common_bitlist(
         data.into_iter()
-            .filter_map(|b| (b[p] == least_common_bit).then(|| b))
+            .filter_map(|b| (b[p] == least_common_bit).then_some(b))
             .collect(),
         Some(p + 1),
     )
@@ -89,10 +89,7 @@ fn bin_to_dec(bin: &BitList) -> u32 {
         return 0;
     }
 
-    bin.iter()
-        .map(|u| *u as u32)
-        .reduce(|res, b| (res * 2) + b)
-        .unwrap()
+    bin.iter().copied().reduce(|res, b| (res * 2) + b).unwrap()
 }
 
 pub fn diagnose_power_consumption<I>(data: I) -> u32
@@ -144,6 +141,6 @@ mod tests {
 
     #[test]
     fn it_diagnoses_life_support() {
-        assert_eq!(230, diagnose_life_support(DATA.lines().map(Into::into)))
+        assert_eq!(230, diagnose_life_support(DATA.lines().map(Into::into)));
     }
 }

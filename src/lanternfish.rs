@@ -77,7 +77,7 @@ impl School {
     }
 
     fn total_fish(&self) -> u64 {
-        self.fish.iter().map(|(_, c)| c).sum()
+        self.fish.values().sum()
     }
 }
 

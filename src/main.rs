@@ -17,7 +17,7 @@ mod utils;
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
     BufReader::new(File::open(path).unwrap())
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
 }
 
 fn day_one() {

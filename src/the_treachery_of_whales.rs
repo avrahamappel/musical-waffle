@@ -1,3 +1,6 @@
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
+
 use std::collections::HashMap;
 
 use itertools::Itertools;
@@ -26,8 +29,8 @@ where
     F: Fn(u32) -> G,
     G: Fn((&u32, &u32)) -> u32,
 {
-    let (_, crab_positions) = separated_list1(char(','), map_res(digit1, str::parse))(data)
-        .map_err(Error::ParseError)?;
+    let (_, crab_positions) =
+        separated_list1(char(','), map_res(digit1, str::parse))(data).map_err(Error::ParseError)?;
 
     let crab_count = crab_positions.len();
 
@@ -77,14 +80,14 @@ mod tests {
     #[test]
     fn test_crab_alignment_constant() {
         if let Ok(alignment) = crab_alignment_constant(DATA) {
-            assert_eq!(37, alignment)
+            assert_eq!(37, alignment);
         }
     }
 
     #[test]
     fn test_crab_alignment_increasing() {
         if let Ok(alignment) = crab_alignment_increasing(DATA) {
-            assert_eq!(168, alignment)
+            assert_eq!(168, alignment);
         }
     }
 

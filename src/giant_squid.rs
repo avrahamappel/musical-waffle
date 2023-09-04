@@ -26,7 +26,7 @@ impl std::fmt::Debug for Board {
 }
 
 impl Board {
-    fn new(data: String) -> Self {
+    fn new(data: &str) -> Self {
         let mut iter = data.lines().map(|l| {
             let mut it = l
                 .split_whitespace()
@@ -76,7 +76,8 @@ impl Board {
 
         iter()
             .flat_map(|x| {
-                iter().flat_map(move |y| (!self.circled.contains(&(x, y))).then(|| self.grid[x][y]))
+                iter()
+                    .filter_map(move |y| (!self.circled.contains(&(x, y))).then(|| self.grid[x][y]))
             })
             .sum::<u32>()
             * winning
@@ -88,11 +89,8 @@ struct Boards {
 }
 
 impl Boards {
-    fn new<I>(data: I) -> Self
-    where
-        I: Iterator<Item = String>,
-    {
-        let boards = data.map(Board::new).collect();
+    fn new(data: &[&str]) -> Self {
+        let boards = data.iter().copied().map(Board::new).collect();
         Self { boards }
     }
 
@@ -123,7 +121,7 @@ impl Bingo {
             .map(|s| s.parse().expect("Numbers line contained unexpected"))
             .collect();
 
-        let boards = Boards::new(data.map(Into::into));
+        let boards = Boards::new(&data.collect::<Vec<_>>());
 
         Bingo { numbers, boards }
     }
@@ -182,11 +180,11 @@ mod tests {
 
     #[test]
     fn it_calculates_first_winning_board_score() {
-        assert_eq!(Some(4512), first_winning_board_score(DATA))
+        assert_eq!(Some(4512), first_winning_board_score(DATA));
     }
 
     #[test]
     fn it_calculates_last_winning_board_score() {
-        assert_eq!(Some(1924), last_winning_board_score(DATA))
+        assert_eq!(Some(1924), last_winning_board_score(DATA));
     }
 }

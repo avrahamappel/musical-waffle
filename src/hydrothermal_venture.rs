@@ -144,7 +144,7 @@ fn dangerous_points<I: Iterator<Item = Line>>(lines: I) -> usize {
             danger_register
         })
         .into_iter()
-        .filter_map(|(_, v)| (v > 1).then(|| v))
+        .filter_map(|(_, v)| (v > 1).then_some(v))
         .count()
 }
 
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn it_parses_a_point_from_a_string_slice() {
-        assert_eq!(Ok(("", Point { x: 8, y: 0 })), Point::parse("8,0"))
+        assert_eq!(Ok(("", Point { x: 8, y: 0 })), Point::parse("8,0"));
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
                 }
             )),
             Line::parse("8,0 -> 0,8")
-        )
+        );
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
                 ]
             )),
             vent_parser(DATA)
-        )
+        );
     }
 
     #[test]
@@ -284,7 +284,7 @@ mod tests {
                     .into_iter()
                     .filter(|l| !l.is_diagonal())
                     .collect::<Vec<_>>()
-            )
+            );
         }
     }
 
@@ -309,7 +309,7 @@ mod tests {
                     Point { x: 3, y: 5 },
                 ],
                 line.points().collect::<Vec<_>>()
-            )
+            );
         }
     }
 
@@ -390,7 +390,7 @@ mod tests {
             ];
 
             for (exp, line) in zip(expected, lines) {
-                assert_eq!(exp, line.points().collect::<Vec<_>>())
+                assert_eq!(exp, line.points().collect::<Vec<_>>());
             }
         }
     }
@@ -402,6 +402,6 @@ mod tests {
 
     #[test]
     fn it_calculates_all_dangerous_points() {
-        assert_eq!(Ok(12), all_dangerous_points(DATA))
+        assert_eq!(Ok(12), all_dangerous_points(DATA));
     }
 }
