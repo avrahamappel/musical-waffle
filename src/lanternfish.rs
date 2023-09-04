@@ -92,10 +92,7 @@ pub fn simulate_fish(data: &str, days: u32) -> Result<u64, Error<&str>> {
 
 #[cfg(test)]
 mod tests {
-    extern crate test;
-
     use super::*;
-    use test::Bencher;
 
     const DATA: &str = "3,4,3,1,2";
 
@@ -112,29 +109,5 @@ mod tests {
             assert_eq!(expected, simulate_fish(DATA, days)?);
         }
         Ok(())
-    }
-
-    #[bench]
-    fn bench_school_sim_day(b: &mut Bencher) {
-        let data = &DATA
-            .split(',')
-            .map(str::parse)
-            .filter_map(Result::ok)
-            .collect::<Vec<_>>()[..];
-        b.iter(|| School::new(data).sim_day())
-    }
-
-    #[bench]
-    fn benchmark_simulated_fish_1_day(b: &mut Bencher) {
-        b.iter(|| simulate_fish(DATA, 1));
-    }
-
-    #[bench]
-    fn benchmark_simulated_fish_10_days(b: &mut Bencher) {
-        b.iter(|| simulate_fish(DATA, 10));
-    }
-    #[bench]
-    fn benchmark_simulated_fish_100_days(b: &mut Bencher) {
-        b.iter(|| simulate_fish(DATA, 100));
     }
 }

@@ -7,5 +7,4 @@ pub mod seven_segment_search;
 pub mod sonar_sweep;
 pub mod the_treachery_of_whales;
 
-mod tests;
 mod utils;

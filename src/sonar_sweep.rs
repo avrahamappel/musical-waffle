@@ -1,26 +1,25 @@
 use itertools::Itertools;
 
-pub fn sweep_increases<I: Iterator<Item = String>>(data: I) -> usize {
-    lines_to_ints(data)
+macro_rules! lines_to_ints {
+    ($data:ident) => {
+        $data.filter_map(|l| l.trim().parse::<u32>().ok())
+    };
+}
+
+pub fn sweep_increases<'a, I: Iterator<Item = &'a str>>(data: I) -> usize {
+    lines_to_ints!(data)
         .tuple_windows()
         .filter_map(|(s, n)| (n > s).then_some(s))
         .count()
 }
 
-pub fn sweep_window_increases<I: Iterator<Item = String>>(data: I) -> usize {
-    lines_to_ints(data)
+pub fn sweep_window_increases<'a, I: Iterator<Item = &'a str>>(data: I) -> usize {
+    lines_to_ints!(data)
         .tuple_windows::<(_, _, _)>()
         .map(|(a, b, c)| a + b + c)
         .tuple_windows()
         .filter_map(|(s, n)| (n > s).then_some(s))
         .count()
-}
-
-fn lines_to_ints<I>(data: I) -> impl Iterator<Item = u32>
-where
-    I: Iterator<Item = String>,
-{
-    data.filter_map(|l| l.trim().parse::<u32>().ok())
 }
 
 #[cfg(test)]

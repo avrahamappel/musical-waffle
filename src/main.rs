@@ -1,5 +1,3 @@
-#![feature(iter_intersperse)]
-#![feature(test)]
 #![allow(clippy::wildcard_imports)]
 
 use std::fs::{read_to_string, File};
@@ -11,15 +9,6 @@ fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
     BufReader::new(File::open(path).unwrap())
         .lines()
         .map_while(Result::ok)
-}
-
-fn day_one() {
-    let data = || get_file_lines("data/sonar_sweep.txt");
-
-    println!("Day 1: Sonar Sweep Part 1");
-    println!("{}", sonar_sweep::sweep_increases(data()));
-    println!("Day 1: Sonar Sweep Part 2");
-    println!("{}", sonar_sweep::sweep_window_increases(data()));
 }
 
 fn day_two() {
@@ -96,7 +85,6 @@ fn day_eight() {
 }
 
 fn main() {
-    day_one();
     day_two();
     day_three();
     day_four();

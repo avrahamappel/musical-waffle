@@ -70,9 +70,6 @@ pub fn crab_alignment_increasing(data: &str) -> Result<u32, Error> {
 
 #[cfg(test)]
 mod tests {
-    extern crate test;
-    use test::Bencher;
-
     use super::*;
 
     const DATA: &str = "16,1,2,0,4,2,7,1,2,14";
@@ -89,15 +86,5 @@ mod tests {
         if let Ok(alignment) = crab_alignment_increasing(DATA) {
             assert_eq!(168, alignment);
         }
-    }
-
-    #[bench]
-    fn bench_crab_alignment_constant(b: &mut Bencher) {
-        b.iter(|| crab_alignment_constant(DATA))
-    }
-
-    #[bench]
-    fn bench_crab_alignment_increasing(b: &mut Bencher) {
-        b.iter(|| crab_alignment_increasing(DATA))
     }
 }
