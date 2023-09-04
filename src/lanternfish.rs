@@ -108,7 +108,7 @@ mod tests {
         ];
 
         for (tag, days, expected) in dataset {
-            println!("{}", tag);
+            println!("{tag}");
             assert_eq!(expected, simulate_fish(DATA, days)?);
         }
         Ok(())

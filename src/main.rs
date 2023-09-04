@@ -1,18 +1,11 @@
 #![feature(iter_intersperse)]
 #![feature(test)]
+#![allow(clippy::wildcard_imports)]
 
 use std::fs::{read_to_string, File};
 use std::io::{BufRead, BufReader};
 
-mod binary_diagnostic;
-mod dive;
-mod giant_squid;
-mod hydrothermal_venture;
-mod lanternfish;
-mod seven_segment_search;
-mod sonar_sweep;
-mod the_treachery_of_whales;
-mod utils;
+use musical_waffle::*;
 
 fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
     BufReader::new(File::open(path).unwrap())
