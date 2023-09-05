@@ -84,3 +84,11 @@ fn day_seven() {
         the_treachery_of_whales::crab_alignment_increasing(data)
     );
 }
+
+#[test]
+fn day_eight() {
+    let data = include_str!("../data/seven_segment_search.txt");
+
+    println!("Day 8: Seven Segment Search");
+    assert_eq!(521, seven_segment_search::unique_segment_total(data));
+}
