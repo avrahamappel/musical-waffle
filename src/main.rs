@@ -1,17 +1,6 @@
 #![allow(clippy::wildcard_imports)]
 
-use std::fs::read_to_string;
-
 use musical_waffle::*;
-
-fn day_four() {
-    let data = read_to_string("data/giant_squid.txt").unwrap();
-
-    println!("Day 4: Giant Squid Part 1");
-    println!("{}", giant_squid::first_winning_board_score(&data).unwrap());
-    println!("Day 4: Giant Squid Part 2");
-    println!("{}", giant_squid::last_winning_board_score(&data).unwrap());
-}
 
 fn day_five() {
     let data = include_str!("../data/hydrothermal_venture.txt");
@@ -60,7 +49,6 @@ fn day_eight() {
 }
 
 fn main() {
-    day_four();
     day_five();
     day_six();
     day_seven();

@@ -35,3 +35,13 @@ fn day_three() {
         binary_diagnostic::diagnose_life_support(data.lines())
     );
 }
+
+#[test]
+fn day_four() {
+    let data = include_str!("../data/giant_squid.txt");
+
+    println!("Day 4: Giant Squid Part 1");
+    assert_eq!(Some(27027), giant_squid::first_winning_board_score(data));
+    println!("Day 4: Giant Squid Part 2");
+    assert_eq!(Some(36975), giant_squid::last_winning_board_score(data));
+}
