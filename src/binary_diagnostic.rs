@@ -6,9 +6,9 @@ use crate::utils::div_ceil;
 
 type BitList = Vec<u32>;
 
-fn strings_to_bit_lists<I>(data: I) -> Vec<BitList>
+fn strings_to_bit_lists<'a, I>(data: I) -> Vec<BitList>
 where
-    I: Iterator<Item = String>,
+    I: Iterator<Item = &'a str>,
 {
     data.map(|s| {
         s.chars()
@@ -92,9 +92,9 @@ fn bin_to_dec(bin: &BitList) -> u32 {
     bin.iter().copied().reduce(|res, b| (res * 2) + b).unwrap()
 }
 
-pub fn diagnose_power_consumption<I>(data: I) -> u32
+pub fn diagnose_power_consumption<'a, I>(data: I) -> u32
 where
-    I: Iterator<Item = String>,
+    I: Iterator<Item = &'a str>,
 {
     let data = strings_to_bit_lists(data);
     let gamma = most_common_bits(&data);
@@ -103,9 +103,9 @@ where
     bin_to_dec(&gamma) * bin_to_dec(&epsilon)
 }
 
-pub fn diagnose_life_support<I>(data: I) -> u32
+pub fn diagnose_life_support<'a, I>(data: I) -> u32
 where
-    I: Iterator<Item = String>,
+    I: Iterator<Item = &'a str>,
 {
     let data = strings_to_bit_lists(data);
     let oxygen_gen_rating = single_most_common_bitlist(data.clone(), None);

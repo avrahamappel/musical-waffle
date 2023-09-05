@@ -1,24 +1,8 @@
 #![allow(clippy::wildcard_imports)]
 
-use std::fs::{read_to_string, File};
-use std::io::{BufRead, BufReader};
+use std::fs::read_to_string;
 
 use musical_waffle::*;
-
-fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
-    BufReader::new(File::open(path).unwrap())
-        .lines()
-        .map_while(Result::ok)
-}
-
-fn day_three() {
-    let data = || get_file_lines("data/binary_diagnostic.txt");
-
-    println!("Day 3: Binary Diagnostic Part 1");
-    println!("{}", binary_diagnostic::diagnose_power_consumption(data()));
-    println!("Day 3: Binary Diagnostic Part 2");
-    println!("{}", binary_diagnostic::diagnose_life_support(data()));
-}
 
 fn day_four() {
     let data = read_to_string("data/giant_squid.txt").unwrap();
@@ -76,7 +60,6 @@ fn day_eight() {
 }
 
 fn main() {
-    day_three();
     day_four();
     day_five();
     day_six();

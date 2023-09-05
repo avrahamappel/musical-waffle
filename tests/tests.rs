@@ -19,3 +19,19 @@ fn day_two() {
     println!("Day 2: Dive! Part 2");
     assert_eq!(1_463_827_010, dive::plot_aimed_course(data.lines()));
 }
+
+#[test]
+fn day_three() {
+    let data = include_str!("../data/binary_diagnostic.txt");
+
+    println!("Day 3: Binary Diagnostic Part 1");
+    assert_eq!(
+        3_309_596,
+        binary_diagnostic::diagnose_power_consumption(data.lines())
+    );
+    println!("Day 3: Binary Diagnostic Part 2");
+    assert_eq!(
+        2_981_085,
+        binary_diagnostic::diagnose_life_support(data.lines())
+    );
+}
