@@ -2,21 +2,6 @@
 
 use musical_waffle::*;
 
-fn day_five() {
-    let data = include_str!("../data/hydrothermal_venture.txt");
-
-    println!("Day 5: Hydrothermal Venture Part 1");
-    println!(
-        "{}",
-        hydrothermal_venture::right_angle_dangerous_points(data).unwrap()
-    );
-    println!("Day 5: Hydrothermal Venture Part 2");
-    println!(
-        "{}",
-        hydrothermal_venture::all_dangerous_points(data).unwrap()
-    );
-}
-
 fn day_six() {
     let data = include_str!("../data/lanternfish.txt");
 
@@ -49,7 +34,6 @@ fn day_eight() {
 }
 
 fn main() {
-    day_five();
     day_six();
     day_seven();
     day_eight();

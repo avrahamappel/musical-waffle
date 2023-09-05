@@ -45,3 +45,16 @@ fn day_four() {
     println!("Day 4: Giant Squid Part 2");
     assert_eq!(Some(36975), giant_squid::last_winning_board_score(data));
 }
+
+#[test]
+fn day_five() {
+    let data = include_str!("../data/hydrothermal_venture.txt");
+
+    println!("Day 5: Hydrothermal Venture Part 1");
+    assert_eq!(
+        Ok(7085),
+        hydrothermal_venture::right_angle_dangerous_points(data)
+    );
+    println!("Day 5: Hydrothermal Venture Part 2");
+    assert_eq!(Ok(20271), hydrothermal_venture::all_dangerous_points(data));
+}
