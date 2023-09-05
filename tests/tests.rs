@@ -68,3 +68,19 @@ fn day_six() {
     println!("Day 6: Lanternfish Part 2");
     assert_eq!(Ok(1_632_146_183_902), lanternfish::simulate_fish(data, 256));
 }
+
+#[test]
+fn day_seven() {
+    let data = include_str!("../data/the_treachery_of_whales.txt");
+
+    println!("Day 7: The Treachery of Whales Part 1");
+    assert_eq!(
+        Ok(355_989),
+        the_treachery_of_whales::crab_alignment_constant(data)
+    );
+    println!("Day 7: The Treachery of Whales Part 2");
+    assert_eq!(
+        Ok(102_245_489),
+        the_treachery_of_whales::crab_alignment_increasing(data)
+    );
+}

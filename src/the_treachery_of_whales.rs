@@ -10,7 +10,7 @@ use nom::multi::separated_list1;
 
 type NomError<'a> = nom::Err<nom::error::Error<&'a str>>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error<'a, 'b> {
     ParseError(NomError<'a>),
     CalcError(&'b str),
