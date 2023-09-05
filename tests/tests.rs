@@ -58,3 +58,13 @@ fn day_five() {
     println!("Day 5: Hydrothermal Venture Part 2");
     assert_eq!(Ok(20271), hydrothermal_venture::all_dangerous_points(data));
 }
+
+#[test]
+fn day_six() {
+    let data = include_str!("../data/lanternfish.txt");
+
+    println!("Day 6: Lanternfish Part 1");
+    assert_eq!(Ok(360_268), lanternfish::simulate_fish(data, 80));
+    println!("Day 6: Lanternfish Part 2");
+    assert_eq!(Ok(1_632_146_183_902), lanternfish::simulate_fish(data, 256));
+}
