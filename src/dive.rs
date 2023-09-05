@@ -1,11 +1,11 @@
 trait Plotter {
-    fn plot<I>(mut self, instructions: I) -> u32
+    fn plot<'a, I>(mut self, instructions: I) -> u32
     where
-        I: Iterator<Item = String>,
+        I: Iterator<Item = &'a str>,
         Self: Sized,
     {
         for instruction in instructions {
-            self = self.apply(Instruction::parse(&instruction));
+            self = self.apply(Instruction::parse(instruction));
         }
 
         self.multiply()
@@ -118,16 +118,16 @@ enum Command {
     Forward,
 }
 
-pub fn plot_course<I>(instructions: I) -> u32
+pub fn plot_course<'a, I>(instructions: I) -> u32
 where
-    I: Iterator<Item = String>,
+    I: Iterator<Item = &'a str>,
 {
     Submarine::new().plot(instructions)
 }
 
-pub fn plot_aimed_course<I>(instructions: I) -> u32
+pub fn plot_aimed_course<'a, I>(instructions: I) -> u32
 where
-    I: Iterator<Item = String>,
+    I: Iterator<Item = &'a str>,
 {
     AimedSubmarine::new().plot(instructions)
 }

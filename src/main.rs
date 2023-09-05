@@ -11,15 +11,6 @@ fn get_file_lines(path: &str) -> impl Iterator<Item = String> {
         .map_while(Result::ok)
 }
 
-fn day_two() {
-    let data = || get_file_lines("data/dive.txt");
-
-    println!("Day 2: Dive! Part 1");
-    println!("{}", dive::plot_course(data()));
-    println!("Day 2: Dive! Part 2");
-    println!("{}", dive::plot_aimed_course(data()));
-}
-
 fn day_three() {
     let data = || get_file_lines("data/binary_diagnostic.txt");
 
@@ -85,7 +76,6 @@ fn day_eight() {
 }
 
 fn main() {
-    day_two();
     day_three();
     day_four();
     day_five();
