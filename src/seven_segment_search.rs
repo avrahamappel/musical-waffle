@@ -1,21 +1,46 @@
-use std::collections::HashMap;
-
-use itertools::Itertools;
-use Signal::*;
-
-macro_rules! log {
-    ($($msg:tt)*) => {
-        if cfg!(test) {
-            println!($($msg)*);
-        }
-    };
-}
+use std::cmp::Reverse;
 
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
 
-type DisplayChar = char;
-type Pattern = Vec<DisplayChar>;
+enum Digit {
+    Zero = 0,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+}
+
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
+enum Wire {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+}
+
+impl Wire {
+    fn parse(char: char) -> Option<Self> {
+        match char {
+            'a' => Some(Self::A),
+            'b' => Some(Self::B),
+            'c' => Some(Self::C),
+            'd' => Some(Self::D),
+            'e' => Some(Self::E),
+            'f' => Some(Self::F),
+            'g' => Some(Self::G),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Signal {
@@ -28,133 +53,275 @@ enum Signal {
     Bottom,
 }
 
-fn all_signals() -> [Signal; 7] {
+fn digit_patterns() -> [(Digit, Vec<Signal>); 10] {
     [
-        Top,
-        TopLeft,
-        TopRight,
-        Middle,
-        BottomLeft,
-        BottomRight,
-        Bottom,
-    ]
-}
-
-fn signal_patterns<'a>() -> HashMap<&'a str, Vec<Signal>> {
-    HashMap::from([
         (
-            "ZERO",
-            vec![Top, TopLeft, TopRight, BottomLeft, BottomRight, Bottom],
-        ),
-        ("ONE", vec![TopRight, BottomRight]),
-        ("TWO", vec![Top, TopRight, Middle, BottomLeft, Bottom]),
-        ("THREE", vec![Top, TopRight, Middle, BottomRight, Bottom]),
-        ("FOUR", vec![TopLeft, TopRight, Middle, BottomRight]),
-        ("FIVE", vec![Top, TopLeft, Middle, BottomRight, Bottom]),
-        (
-            "SIX",
-            vec![Top, TopLeft, Middle, BottomLeft, BottomRight, Bottom],
-        ),
-        ("SEVEN", vec![Top, TopRight, BottomRight]),
-        (
-            "EIGHT",
+            Digit::Zero,
             vec![
-                Top,
-                TopLeft,
-                TopRight,
-                Middle,
-                BottomLeft,
-                BottomRight,
-                Bottom,
+                Signal::Top,
+                Signal::TopLeft,
+                Signal::TopRight,
+                Signal::BottomLeft,
+                Signal::BottomRight,
+                Signal::Bottom,
+            ],
+        ),
+        (Digit::One, vec![Signal::TopRight, Signal::BottomRight]),
+        (
+            Digit::Two,
+            vec![
+                Signal::Top,
+                Signal::TopRight,
+                Signal::Middle,
+                Signal::BottomLeft,
+                Signal::Bottom,
             ],
         ),
         (
-            "NINE",
-            vec![Top, TopLeft, TopRight, Middle, BottomRight, Bottom],
+            Digit::Three,
+            vec![
+                Signal::Top,
+                Signal::TopRight,
+                Signal::Middle,
+                Signal::BottomRight,
+                Signal::Bottom,
+            ],
         ),
-    ])
+        (
+            Digit::Four,
+            vec![
+                Signal::TopLeft,
+                Signal::TopRight,
+                Signal::Middle,
+                Signal::BottomRight,
+            ],
+        ),
+        (
+            Digit::Five,
+            vec![
+                Signal::Top,
+                Signal::TopLeft,
+                Signal::Middle,
+                Signal::BottomRight,
+                Signal::Bottom,
+            ],
+        ),
+        (
+            Digit::Six,
+            vec![
+                Signal::Top,
+                Signal::TopLeft,
+                Signal::Middle,
+                Signal::BottomLeft,
+                Signal::BottomRight,
+                Signal::Bottom,
+            ],
+        ),
+        (
+            Digit::Seven,
+            vec![Signal::Top, Signal::TopRight, Signal::BottomRight],
+        ),
+        (
+            Digit::Eight,
+            vec![
+                Signal::Top,
+                Signal::TopLeft,
+                Signal::TopRight,
+                Signal::Middle,
+                Signal::BottomLeft,
+                Signal::BottomRight,
+                Signal::Bottom,
+            ],
+        ),
+        (
+            Digit::Nine,
+            vec![
+                Signal::Top,
+                Signal::TopLeft,
+                Signal::TopRight,
+                Signal::Middle,
+                Signal::BottomRight,
+                Signal::Bottom,
+            ],
+        ),
+    ]
 }
 
-fn solve(
-    mut patterns: Vec<Pattern>,
-    mut solved: HashMap<DisplayChar, Signal>,
-    mut possibilities: Vec<(DisplayChar, Vec<Signal>, Pattern)>,
-) -> HashMap<DisplayChar, Signal> {
-    // If we're done, we're done
-    if patterns.is_empty() {
-        log!("All done! Solved {:?}", solved);
-        return solved;
+struct Pattern {
+    wires: Vec<Wire>,
+}
+
+impl Pattern {
+    fn parse(data: &str) -> Option<Self> {
+        if data.is_empty() {
+            return None;
+        }
+
+        let wires = data.chars().filter_map(Wire::parse).collect();
+
+        Some(Self { wires })
     }
 
-    let pattern = patterns.pop().unwrap().to_owned();
-    dbg!(&pattern);
-
-    // find first signal list that matches the length
-    // TODO pass this in
-    let signal_patterns = signal_patterns();
-    let mut len_matched_sig_pats = signal_patterns
-        .iter()
-        .map(|(_, v)| v)
-        .filter(|v| v.len() == pattern.len())
-        .collect::<Vec<_>>();
-
-    dbg!(&len_matched_sig_pats);
-
-    // if anything is already known etc.
-    let guesses: Vec<&DisplayChar> = pattern
-        .iter()
-        .filter(|p| !solved.contains_key(&p))
-        .collect();
-
-    dbg!(&guesses);
-
-    let signals_to_guess_it: Vec<Signal> = len_matched_sig_pats
-        .pop()
-        .expect("No matching signal patterns for this length")
-        .to_owned()
-        .into_iter()
-        .filter(|s| !solved.values().collect_vec().contains(&s))
-        .collect();
-
-    let len = guesses.len();
-
-    for (i, c) in guesses.into_iter().enumerate() {
-        possibilities.push((
-            *c,
-            signals_to_guess_it
-                .iter()
-                .copied()
-                .cycle()
-                .skip(i)
-                .take(len)
-                .collect(),
-            pattern.clone(),
-        ));
+    fn len(&self) -> usize {
+        self.wires.len()
     }
 
-    dbg!(&possibilities);
+    fn decode(&self, solution: Vec<(Wire, Signal)>) -> usize {
+        let signals: Vec<_> = self
+            .wires
+            .iter()
+            .filter_map(|wire| solution.iter().find_map(|(w, s)| (w == wire).then_some(s)))
+            .collect();
 
-    solved = possibilities.iter().fold(
-        HashMap::with_capacity(possibilities.len()),
-        |mut acc, (c, v, _)| {
-            acc.insert(*c, v[0]);
-            acc
-        },
-    );
+        digit_patterns()
+            .iter()
+            .find_map(|(digit, pattern)| (pattern == signals).then_some(digit))
+            .expect("The solution should work to find a digit")
+    }
+}
 
-    dbg!(&solved);
+#[derive(Default)]
+struct Guesses {
+    changed: bool,
+    guesses: Vec<(Wire, Signal)>,
+    solution: Vec<(Wire, Signal)>,
+}
 
-    solve(patterns, solved, possibilities)
+const ALL_SIGNALS: [Signal; 7] = [
+    Signal::Top,
+    Signal::TopLeft,
+    Signal::TopRight,
+    Signal::Middle,
+    Signal::BottomLeft,
+    Signal::BottomRight,
+    Signal::Bottom,
+];
+
+const ALL_WIRES: [Wire; 7] = [
+    Wire::A,
+    Wire::B,
+    Wire::C,
+    Wire::D,
+    Wire::E,
+    Wire::F,
+    Wire::G,
+];
+
+impl Guesses {
+    fn new() -> Self {
+        let guesses = ALL_SIGNALS
+            .into_iter()
+            .flat_map(|signal| ALL_WIRES.into_iter().map(|wire| (wire, signal)))
+            .collect();
+
+        Self {
+            guesses,
+            ..Self::default()
+        }
+    }
+
+    fn start_round(&self) {
+        self.changed = false
+    }
+
+    fn hasnt_changed(&self) -> bool {
+        !self.changed
+    }
+
+    fn narrow(&self, sample: Pattern, pattern: &[Signal]) {
+        todo!()
+        // take the first wire from the pattern
+        // if it's known, remove it and the corresponding signal
+        // call this method again with the rest
+        // if it has 2 known possible signals, and only one of them is present in the signals pattern, we've established that it corresponds to that one
+        // TODO what if the guess is wrong? we need to branch out our solutions and see which Guesses instance ends up valid
+        // mark this wire as known
+        // remove and call this method with the rest
+        // if it has 2 possible signals, and there is another wire with the same 2 possibilities
+        // remove both and continue
+        // if there is only one wire and one signal, we've established that it corresponds to that one
+        // mark it as known
+    }
+
+    fn solved(&self) -> Option<Vec<(Wire, Signal)>> {
+        if self.solution.len() == 7 {
+            return Some(self.solution);
+        }
+
+        None
+    }
+}
+
+macro_rules! samples_signals {
+    ($data:ident) => {
+        $data.lines().filter_map(|l| l.split_once(" | "))
+    };
 }
 
 pub fn unique_segment_total(data: &str) -> usize {
-    data.lines()
-        .flat_map(|l| {
-            l.split('|').skip(1).take(1).map(|ps| {
-                ps.split_ascii_whitespace()
-                    .filter(|p| DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS.contains(&p.len()))
-                    .count()
-            })
+    samples_signals!(data)
+        .map(|ps| {
+            ps.1.split_ascii_whitespace()
+                .filter(|p| DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS.contains(&p.len()))
+                .count()
+        })
+        .sum()
+}
+
+pub fn solve_segments(data: &str) -> usize {
+    samples_signals!(data)
+        .filter_map(|(samples, signals)| {
+            let mut samples: Vec<_> = samples
+                .split_ascii_whitespace()
+                .filter_map(Pattern::parse)
+                .collect();
+
+            samples.sort_unstable_by_key(|s| {
+                (
+                    DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS.contains(&s.len()),
+                    Reverse(s.len()),
+                )
+            });
+
+            let guesses = Guesses::new();
+
+            let solve = || loop {
+                for sample in samples {
+                    guesses.start_round();
+
+                    let matched_patterns: Vec<_> = digit_patterns()
+                        .iter()
+                        .filter(|(d, ps)| ps.len() == sample.len())
+                        .collect();
+
+                    for (digit, pattern) in matched_patterns {
+                        guesses.narrow(sample, pattern);
+
+                        if let Some(solution) = guesses.solved() {
+                            return Some(solution);
+                        }
+                    }
+
+                    if guesses.hasnt_changed() {
+                        return None;
+                    }
+                }
+            };
+
+            if let Some(solution) = solve() {
+                return signals
+                    .split_ascii_whitespace()
+                    .filter_map(Pattern::parse)
+                    .map(|p| p.decode(solution))
+                    .rev()
+                    .fold((1, 0), |(column, acc), digit| {
+                        (column * 10, acc + digit + column)
+                    })
+                    .1
+                    .into();
+            }
+
+            None
         })
         .sum()
 }
@@ -183,36 +350,7 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
     }
 
     #[test]
-    fn test_solve() {
-        let mut patterns = vec![
-            vec!['a', 'c', 'e', 'd', 'g', 'f', 'b'],
-            vec!['c', 'd', 'f', 'b', 'e'],
-            vec!['g', 'c', 'd', 'f', 'a'],
-            vec!['f', 'b', 'c', 'a', 'd'],
-            vec!['d', 'a', 'b'],
-            vec!['c', 'e', 'f', 'a', 'b', 'd'],
-            vec!['c', 'd', 'f', 'g', 'e', 'b'],
-            vec!['e', 'a', 'f', 'b'],
-            vec!['c', 'a', 'g', 'e', 'd', 'b'],
-            vec!['a', 'b'],
-        ];
-
-        patterns.sort_by(|a, b| b.len().cmp(&a.len()));
-
-        let solved = solve(patterns, HashMap::new(), Vec::new());
-        let expected = HashMap::from([
-            ('a', TopRight),
-            ('b', BottomRight),
-            ('c', Bottom),
-            ('d', Top),
-            ('e', TopLeft),
-            ('f', Middle),
-            ('g', BottomLeft),
-        ]);
-
-        for (k, v) in expected {
-            println!("Testing solved for {:?}", k);
-            assert_eq!(v, *solved.get(&k).unwrap());
-        }
+    fn test_solve_segments() {
+        assert_eq!(16, solve_segments(SMALL_DATA));
     }
 }
