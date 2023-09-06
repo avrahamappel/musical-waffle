@@ -3,8 +3,10 @@ use std::cmp::Reverse;
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
 
+#[repr(usize)]
+#[derive(Clone, Copy)]
 enum Digit {
-    Zero = 0,
+    Zero,
     One,
     Two,
     Three,
@@ -177,6 +179,7 @@ impl Pattern {
             .iter()
             .find_map(|(digit, pattern)| (pattern == signals).then_some(digit))
             .expect("The solution should work to find a digit")
+            .clone() as usize
     }
 }
 
@@ -220,27 +223,97 @@ impl Guesses {
         }
     }
 
+    // TODO remove
     fn start_round(&self) {
         self.changed = false
     }
 
+    // TODO remove
     fn hasnt_changed(&self) -> bool {
         !self.changed
     }
 
-    fn narrow(&self, sample: Pattern, pattern: &[Signal]) {
-        todo!()
+    /// Do some logic to figure out which wires correspond to which signals
+    fn narrow(&self, wires: Box<dyn Iterator<Item = Wire>>, signals: Vec<Signal>) {
+        // Remove signals that we already know
+        let signals: Vec<_> = signals
+            .iter()
+            .copied()
+            .filter(|s| self.solution.iter().find(|ws| *ws.1 == s).is_none())
+            .collect();
+
         // take the first wire from the pattern
+        let wire = wires.next();
+        if wire.is_none() {
+            return;
+        }
+        let wire = wire.unwrap();
+
         // if it's known, remove it and the corresponding signal
         // call this method again with the rest
-        // if it has 2 known possible signals, and only one of them is present in the signals pattern, we've established that it corresponds to that one
-        // TODO what if the guess is wrong? we need to branch out our solutions and see which Guesses instance ends up valid
-        // mark this wire as known
-        // remove and call this method with the rest
-        // if it has 2 possible signals, and there is another wire with the same 2 possibilities
-        // remove both and continue
+        if let Some((_, signal)) = self.solution.iter().find(|(w, _)| *w == wire) {
+            self.narrow(
+                Box::new(wires.filter(|w| *w != wire)),
+                signals.into_iter().filter(|s| s != signal).collect(),
+            );
+            return;
+        }
+
         // if there is only one wire and one signal, we've established that it corresponds to that one
         // mark it as known
+        if wires.done() {
+            if signals.len() == 1 {
+                self.mark_known(wire, signals[0]);
+            }
+            return;
+        }
+
+        let possible_signals_for_wire: Vec<_> = self
+            .guesses
+            .iter()
+            .filter_map(|(w, s)| (*w == wire).then_some(*s))
+            .collect();
+
+        // if only one of the possible signals is present in the signals pattern, we've established that it corresponds to that one
+        // mark this wire as known
+        // remove and call this method with the rest
+        let possibilites_in_signals_vec = signals
+            .iter()
+            .filter(|s| possible_signals_for_wire.contains(s));
+        if possibilites_in_signals_vec.count() == 1 {
+            let signal = possibilites_in_signals_vec.next().unwrap();
+            self.mark_known(wire, *signal);
+            self.narrow(
+                Box::new(wires.filter(|w| *w != wire)),
+                signals.into_iter().filter(|s| s != signal).collect(),
+            );
+            return;
+        }
+
+        if possible_signals_for_wire.len() != 2 {
+            return;
+        }
+
+        // if it has 2 possible signals, and there is another wire with the same 2 possibilities
+        // remove both and continue
+        if let Some((wire2, _)) = self
+            .guesses
+            .iter()
+            .find(|(w, s)| *w != wire && possible_signals_for_wire.contains(s))
+        {
+            self.narrow(
+                Box::new(wires.filter(|w| ![wire, *wire2].contains(w))),
+                signals
+                    .into_iter()
+                    .filter(|s| !possible_signals_for_wire.contains(s))
+                    .collect(),
+            );
+            return;
+        }
+    }
+
+    fn mark_known(&self, wire: Wire, signal: Signal) {
+        todo!()
     }
 
     fn solved(&self) -> Option<Vec<(Wire, Signal)>> {
@@ -290,12 +363,12 @@ pub fn solve_segments(data: &str) -> usize {
                     guesses.start_round();
 
                     let matched_patterns: Vec<_> = digit_patterns()
-                        .iter()
+                        .into_iter()
                         .filter(|(d, ps)| ps.len() == sample.len())
                         .collect();
 
                     for (digit, pattern) in matched_patterns {
-                        guesses.narrow(sample, pattern);
+                        guesses.narrow(Box::new(sample.wires.into_iter()), pattern);
 
                         if let Some(solution) = guesses.solved() {
                             return Some(solution);
