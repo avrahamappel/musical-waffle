@@ -168,21 +168,26 @@ impl Pattern {
         self.wires.len()
     }
 
-    fn decode(&self, solution: Vec<(Wire, Signal)>) -> usize {
+    fn decode(&self, solution: &[(Wire, Signal)]) -> usize {
         let signals: Vec<_> = self
             .wires
             .iter()
             .filter_map(|wire| solution.iter().find_map(|(w, s)| (w == wire).then_some(s)))
             .collect();
 
-        digit_patterns()
+        *digit_patterns()
             .iter()
-            .find_map(|(digit, pattern)| (pattern == signals).then_some(digit))
-            .expect("The solution should work to find a digit")
-            .clone() as usize
+            .find_map(|(digit, pattern)| {
+                signals
+                    .iter()
+                    .all(|s| pattern.contains(*s))
+                    .then_some(digit)
+            })
+            .expect("The solution should work to find a digit") as usize
     }
 }
 
+/// This struct handles the main logic for figuring out which signal corresponds to which wire
 #[derive(Default)]
 struct Guesses {
     changed: bool,
@@ -211,10 +216,11 @@ const ALL_WIRES: [Wire; 7] = [
 ];
 
 impl Guesses {
+    /// Instantiate the Guesses struct, initializing it with all possible wire/signal combinations
     fn new() -> Self {
         let guesses = ALL_SIGNALS
             .into_iter()
-            .flat_map(|signal| ALL_WIRES.into_iter().map(|wire| (wire, signal)))
+            .flat_map(|signal| ALL_WIRES.into_iter().map(move |wire| (wire, signal)))
             .collect();
 
         Self {
@@ -223,23 +229,56 @@ impl Guesses {
         }
     }
 
-    // TODO remove
-    fn start_round(&self) {
-        self.changed = false
+    /// Figure out which signal corresponds to which wire, based on the given observed pattern samples
+    fn solve(&mut self, samples: &[Pattern]) -> Option<Vec<(Wire, Signal)>> {
+        loop {
+            for sample in samples {
+                self.changed = false;
+
+                let matched_patterns: Vec<_> = digit_patterns()
+                    .into_iter()
+                    .filter(|(_, ps)| ps.len() == sample.len())
+                    .collect();
+
+                for (_, pattern) in matched_patterns {
+                    self.narrow(Box::new(sample.wires.clone().into_iter()), pattern);
+
+                    if let Some(solution) = self.solved() {
+                        return Some(solution.clone());
+                    }
+                }
+
+                if !self.changed {
+                    return None;
+                }
+            }
+        }
     }
 
-    // TODO remove
-    fn hasnt_changed(&self) -> bool {
-        !self.changed
-    }
+    /// Do some logic to narrow down the guesses
+    fn narrow(&mut self, mut wires: Box<dyn Iterator<Item = Wire>>, signals: Vec<Signal>) {
+        macro_rules! recurse {
+            () => {
+                recurse!(move |w| *w != wire, |s| s != signal)
+            };
+            ($wires_cb:tt, $signals_cb:tt) => {
+                self.narrow(
+                    Box::new(wires.filter($wires_cb)),
+                    signals
+                        .into_iter()
+                        .filter($signals_cb)
+                        .filter(|s| self.solution.iter().find(|ws| ws.1 == *s).is_none())
+                        .collect(),
+                );
+                return;
+            };
+        }
 
-    /// Do some logic to figure out which wires correspond to which signals
-    fn narrow(&self, wires: Box<dyn Iterator<Item = Wire>>, signals: Vec<Signal>) {
         // Remove signals that we already know
         let signals: Vec<_> = signals
             .iter()
             .copied()
-            .filter(|s| self.solution.iter().find(|ws| *ws.1 == s).is_none())
+            .filter(|s| !self.solution.iter().any(|ws| ws.1 == *s))
             .collect();
 
         // take the first wire from the pattern
@@ -253,7 +292,7 @@ impl Guesses {
         // call this method again with the rest
         if let Some((_, signal)) = self.solution.iter().find(|(w, _)| *w == wire) {
             self.narrow(
-                Box::new(wires.filter(|w| *w != wire)),
+                Box::new(wires.filter(move |w| *w != wire)),
                 signals.into_iter().filter(|s| s != signal).collect(),
             );
             return;
@@ -261,7 +300,8 @@ impl Guesses {
 
         // if there is only one wire and one signal, we've established that it corresponds to that one
         // mark it as known
-        if wires.done() {
+        let mut wires = wires.peekable();
+        if wires.peek().is_none() {
             if signals.len() == 1 {
                 self.mark_known(wire, signals[0]);
             }
@@ -277,48 +317,57 @@ impl Guesses {
         // if only one of the possible signals is present in the signals pattern, we've established that it corresponds to that one
         // mark this wire as known
         // remove and call this method with the rest
-        let possibilites_in_signals_vec = signals
+        let possibilites_in_signals_vec: Vec<_> = signals
             .iter()
-            .filter(|s| possible_signals_for_wire.contains(s));
-        if possibilites_in_signals_vec.count() == 1 {
-            let signal = possibilites_in_signals_vec.next().unwrap();
-            self.mark_known(wire, *signal);
+            .copied()
+            .filter(|s| possible_signals_for_wire.contains(s))
+            .collect();
+
+        if possibilites_in_signals_vec.len() == 1 {
+            let signal = possibilites_in_signals_vec[0];
+            self.mark_known(wire, signal);
             self.narrow(
-                Box::new(wires.filter(|w| *w != wire)),
-                signals.into_iter().filter(|s| s != signal).collect(),
+                Box::new(wires.filter(move |w| *w != wire)),
+                signals.into_iter().filter(|s| *s != signal).collect(),
             );
             return;
         }
 
-        if possible_signals_for_wire.len() != 2 {
-            return;
-        }
+        // if possible_signals_for_wire.len() != 2 {
+        //     return;
+        // }
 
         // if it has 2 possible signals, and there is another wire with the same 2 possibilities
         // remove both and continue
-        if let Some((wire2, _)) = self
-            .guesses
-            .iter()
-            .find(|(w, s)| *w != wire && possible_signals_for_wire.contains(s))
-        {
-            self.narrow(
-                Box::new(wires.filter(|w| ![wire, *wire2].contains(w))),
-                signals
-                    .into_iter()
-                    .filter(|s| !possible_signals_for_wire.contains(s))
-                    .collect(),
-            );
-            return;
+        if possible_signals_for_wire.len() == 2 {
+            if let Some((wire2, _)) = self
+                .guesses
+                .iter()
+                .copied()
+                .find(|(w, s)| *w != wire && possible_signals_for_wire.contains(s))
+            {
+                self.narrow(
+                    Box::new(wires.filter(move |w| ![wire, wire2].contains(w))),
+                    signals
+                        .into_iter()
+                        .filter(|s| !possible_signals_for_wire.contains(s))
+                        .collect(),
+                );
+                return;
+            }
         }
     }
 
-    fn mark_known(&self, wire: Wire, signal: Signal) {
+    /// Add a wire/signal pair to the solutions vec and remove all invalidated possibilities
+    /// Also marks the guesses struct as changed for this iteration of the main solve loop
+    fn mark_known(&mut self, wire: Wire, signal: Signal) {
         todo!()
     }
 
-    fn solved(&self) -> Option<Vec<(Wire, Signal)>> {
+    /// Get the solution, if known
+    fn solved(&self) -> Option<&Vec<(Wire, Signal)>> {
         if self.solution.len() == 7 {
-            return Some(self.solution);
+            return Some(&self.solution);
         }
 
         None
@@ -331,6 +380,7 @@ macro_rules! samples_signals {
     };
 }
 
+/// Get the total number of signal patterns with unique sizes in the data
 pub fn unique_segment_total(data: &str) -> usize {
     samples_signals!(data)
         .map(|ps| {
@@ -341,6 +391,7 @@ pub fn unique_segment_total(data: &str) -> usize {
         .sum()
 }
 
+/// Figure out what each wire corresponds to and decode the scrambled digits
 pub fn solve_segments(data: &str) -> usize {
     samples_signals!(data)
         .filter_map(|(samples, signals)| {
@@ -356,36 +407,13 @@ pub fn solve_segments(data: &str) -> usize {
                 )
             });
 
-            let guesses = Guesses::new();
+            let mut guesses = Guesses::new();
 
-            let solve = || loop {
-                for sample in samples {
-                    guesses.start_round();
-
-                    let matched_patterns: Vec<_> = digit_patterns()
-                        .into_iter()
-                        .filter(|(d, ps)| ps.len() == sample.len())
-                        .collect();
-
-                    for (digit, pattern) in matched_patterns {
-                        guesses.narrow(Box::new(sample.wires.into_iter()), pattern);
-
-                        if let Some(solution) = guesses.solved() {
-                            return Some(solution);
-                        }
-                    }
-
-                    if guesses.hasnt_changed() {
-                        return None;
-                    }
-                }
-            };
-
-            if let Some(solution) = solve() {
+            if let Some(solution) = guesses.solve(&samples) {
                 return signals
                     .split_ascii_whitespace()
                     .filter_map(Pattern::parse)
-                    .map(|p| p.decode(solution))
+                    .map(|p| p.decode(&solution))
                     .rev()
                     .fold((1, 0), |(column, acc), digit| {
                         (column * 10, acc + digit + column)
