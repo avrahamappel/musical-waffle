@@ -193,8 +193,7 @@ impl Pattern {
 #[derive(Default, PartialEq, Eq)]
 struct Solver {
     changed: bool,
-    possibilities: Vec<(Wire, Signal)>,
-    solution: Vec<(Wire, Signal)>,
+    guesses: Vec<(Wire, Signal)>,
 }
 
 const ALL_SIGNALS: [Signal; 7] = [
@@ -237,9 +236,9 @@ impl Debug for Solver {
                 ALL_WIRES
                     .iter()
                     .map(|wire| {
-                        if self.solution.contains(&(*wire, signal)) {
+                        if self.solution().any(|(w, s)| w == *wire && s == signal) {
                             'x'
-                        } else if self.possibilities.contains(&(*wire, signal)) {
+                        } else if self.guesses.contains(&(*wire, signal)) {
                             ' '
                         } else {
                             '.'
@@ -256,13 +255,13 @@ impl Debug for Solver {
 impl Solver {
     /// Instantiate the Solver struct, initializing it with all possible wire/signal combinations
     fn new() -> Self {
-        let possibilities = ALL_WIRES
+        let guesses = ALL_WIRES
             .into_iter()
             .flat_map(|wire| ALL_SIGNALS.into_iter().map(move |signal| (wire, signal)))
             .collect();
 
         Self {
-            possibilities,
+            guesses,
             ..Self::default()
         }
     }
@@ -309,42 +308,28 @@ impl Solver {
 
         for wire in wires {
             dbg!(wire);
-            // if this wire is solved, reject any patterns that do not contain it
-            if let Some((_, signal)) = self.solution.iter().find(|(w, _)| w == wire) {
-                dbg!(signal);
-                signal_patterns.retain(|signals| {
-                    let cont = signals.contains(signal);
+            // reject any patterns that do not contain at least one possible signal for this wire
+            let possible_signals: Vec<_> = self
+                .groups()
+                .filter(|(ws, _)| ws.contains(wire))
+                .map(|t| t.1)
+                .collect();
+            dbg!(&possible_signals);
+            signal_patterns.retain(|signals| {
+                possible_signals.iter().any(|ps| {
+                    let cont = ps.iter().all(|p| signals.contains(p));
                     if cont {
                         dbg!(signals);
                     }
                     cont
-                });
-            } else {
-                // reject any patterns that do not contain at least one possible signal for this wire
-                let possible_signals: Vec<_> = self
-                    .possibilities
-                    .iter()
-                    .filter(|(w, _)| w == wire)
-                    .map(|t| t.1)
-                    .collect();
-                dbg!(&possible_signals);
-                signal_patterns.retain(|signals| {
-                    possible_signals.iter().any(|ps| {
-                        let cont = signals.contains(ps);
-                        if cont {
-                            dbg!(signals);
-                        }
-                        cont
-                    })
-                });
-            }
+                })
+            });
         }
 
-        // if there is only one pattern left, that's the correct pattern.
+        // if there is exactly one pattern left, that's the correct pattern.
         if signal_patterns.len() == 1 {
             signal_patterns.pop()
         } else {
-            dbg!(signal_patterns);
             None
         }
     }
@@ -360,12 +345,7 @@ impl Solver {
         for signal in signals {
             let unsolved_wires: Vec<_> = wires
                 .iter()
-                .filter(|wire| {
-                    !self
-                        .solution
-                        .iter()
-                        .any(|(w, s)| *s == signal && w == *wire)
-                })
+                .filter(|wire| !self.solution().any(|(w, s)| s == signal && w == **wire))
                 .collect();
             if unsolved_wires.len() == 1 {
                 self.mark_known(*unsolved_wires[0], signal);
@@ -378,46 +358,58 @@ impl Solver {
     /// Add a wire/signal pair to the solution vec and remove all invalidated possibilities
     /// Also marks the Solver struct as changed for this iteration of the main solve loop
     fn mark_known(&mut self, wire: Wire, signal: Signal) {
-        self.solution.push((wire, signal));
-        self.possibilities
-            .retain(|(w, s)| *w != wire && *s != signal);
-        self.find_known();
+        self.guesses
+            .retain(|(w, s)| matches!((*w != wire, *s != signal), (true, true) | (false, false)));
         self.changed = true;
     }
 
     /// Cross off possibilities that we know are invalid
     /// Also marks the Solver struct as changed for this iteration of the main solve loop
     fn narrow_guesses(&mut self, wires: &[Wire], signals: &[Signal]) {
-        self.possibilities.retain(|(w, s)| {
+        self.guesses.retain(|(w, s)| {
             matches!(
                 (wires.contains(w), signals.contains(s)),
                 (true, true) | (false, false)
             )
         });
-        self.find_known();
         self.changed = true;
     }
 
     /// If any possibilities are logically the only possibility
     /// for that pair, move it to the solution vec
     /// This is O(n * n)
-    fn find_known(&mut self) {
-        let (mut move_to_solution, other_possibilities): (Vec<_>, Vec<_>) =
-            self.possibilities.iter().partition(|(wire, signal)| {
-                // are there no other possibilities that have the same wire or the same signal
-                self.possibilities
-                    .iter()
-                    .all(|(w, s)| matches!((w == wire, s == signal), (true, true) | (false, false)))
-            });
+    // fn find_known(&mut self) {
+    //     let (mut move_to_solution, other_possibilities): (Vec<_>, Vec<_>) =
+    //         self.guesses.iter().partition(|(wire, signal)| {
+    //             // are there no other possibilities that have the same wire or the same signal
+    //             self.guesses
+    //                 .iter()
+    //                 .all(|(w, s)| matches!((w == wire, s == signal), (true, true) | (false, false)))
+    //         });
 
-        self.solution.append(&mut move_to_solution);
-        self.possibilities = other_possibilities;
+    //     self.solution.append(&mut move_to_solution);
+    //     self.guesses = other_possibilities;
+    // }
+
+    /// Get all logical "groups" of wire/signal pairs (one or more wires sharing the same guesses,
+    /// the number of which is the same as the number of wires themselves)
+    fn groups(&self) -> impl Iterator<Item = (Vec<Wire>, Vec<Signal>)> {
+        todo!()
+    }
+
+    /// Get all groups that have only one possibility. This is the solution, provided that all
+    /// wires and signals are contained in this group
+    fn solution(&self) -> impl Iterator<Item = (Wire, Signal)> {
+        self.groups()
+            .filter(|(wires, signals)| wires.len() == 1)
+            .map(|(wires, signals)| (wires[0], signals[0]))
     }
 
     /// Get the solution, if known
     fn is_solved(&self) -> Option<&Vec<(Wire, Signal)>> {
-        if self.solution.len() == 7 {
-            return Some(&self.solution);
+        let solution: Vec<_> = self.solution().collect();
+        if solution.len() == 7 {
+            return Some(&solution);
         }
 
         None
@@ -482,9 +474,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deduce_pattern_from_possibilities() {
+    fn deduce_pattern() {
         let solver = Solver {
-            possibilities: vec![
+            guesses: vec![
                 (Wire::A, Signal::Top),
                 (Wire::A, Signal::Bottom),
                 (Wire::B, Signal::Top),
@@ -503,25 +495,9 @@ mod tests {
     }
 
     #[test]
-    fn deduce_pattern_from_solution() {
-        let solver = Solver {
-            solution: vec![(Wire::A, Signal::Top), (Wire::B, Signal::Bottom)],
-            ..Default::default()
-        };
-
-        assert_eq!(
-            Some(vec![Signal::Top]),
-            solver.deduce_pattern(
-                &vec![Wire::A],
-                vec![vec![Signal::Top], vec![Signal::Bottom]]
-            )
-        );
-    }
-
-    #[test]
     fn mark_solved() {
         let mut solver = Solver {
-            possibilities: vec![
+            guesses: vec![
                 (Wire::A, Signal::Top),
                 (Wire::A, Signal::Middle),
                 (Wire::A, Signal::Bottom),
@@ -539,13 +515,13 @@ mod tests {
 
         assert_eq!(
             Solver {
-                possibilities: vec![
+                guesses: vec![
+                    (Wire::A, Signal::Top),
                     (Wire::B, Signal::Middle),
                     (Wire::B, Signal::Bottom),
                     (Wire::C, Signal::Middle),
                     (Wire::C, Signal::Bottom),
                 ],
-                solution: vec![(Wire::A, Signal::Top),],
                 changed: true
             },
             solver
@@ -555,7 +531,7 @@ mod tests {
     #[test]
     fn narrow_guesses() {
         let mut solver = Solver {
-            possibilities: vec![
+            guesses: vec![
                 (Wire::A, Signal::Top),
                 (Wire::A, Signal::Middle),
                 (Wire::A, Signal::Bottom),
@@ -576,13 +552,13 @@ mod tests {
 
         assert_eq!(
             Solver {
-                possibilities: vec![
+                guesses: vec![
                     (Wire::A, Signal::Top),
                     (Wire::A, Signal::Bottom),
                     (Wire::B, Signal::Top),
                     (Wire::B, Signal::Bottom),
+                    (Wire::C, Signal::Middle),
                 ],
-                solution: vec![(Wire::C, Signal::Middle),],
                 changed: true,
             },
             solver
