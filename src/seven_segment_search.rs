@@ -1,4 +1,5 @@
 use std::cmp::Reverse;
+use std::fmt::{Debug, Error, Formatter};
 
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
@@ -191,9 +192,9 @@ impl Pattern {
 /// This struct handles the main logic for figuring out which signal corresponds to which wire
 // TODO change its name to Solver
 #[derive(Default)]
-struct Guesses {
+struct Solver {
     changed: bool,
-    guesses: Vec<(Wire, Signal)>,
+    possibilities: Vec<(Wire, Signal)>,
     solution: Vec<(Wire, Signal)>,
 }
 
@@ -217,22 +218,59 @@ const ALL_WIRES: [Wire; 7] = [
     Wire::G,
 ];
 
-impl Guesses {
-    /// Instantiate the Guesses struct, initializing it with all possible wire/signal combinations
+impl Debug for Solver {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        writeln!(f)?;
+        writeln!(f, "  |abcdefg")?;
+        for signal in ALL_SIGNALS {
+            writeln!(
+                f,
+                "{}{}",
+                match signal {
+                    Signal::Top => " T|",
+                    Signal::TopLeft => "TL|",
+                    Signal::TopRight => "TR|",
+                    Signal::Middle => " M|",
+                    Signal::BottomLeft => "BL|",
+                    Signal::BottomRight => "BR|",
+                    Signal::Bottom => " B|",
+                },
+                ALL_WIRES
+                    .iter()
+                    .map(|wire| {
+                        if self.solution.contains(&(*wire, signal)) {
+                            'x'
+                        } else if self.possibilities.contains(&(*wire, signal)) {
+                            ' '
+                        } else {
+                            '.'
+                        }
+                    })
+                    .collect::<String>()
+            )?;
+        }
+        writeln!(f, "----------")?;
+        writeln!(f, "CHANGED: {}", if self.changed { 'Y' } else { 'N' })
+    }
+}
+
+impl Solver {
+    /// Instantiate the Solver struct, initializing it with all possible wire/signal combinations
     fn new() -> Self {
-        let guesses = ALL_SIGNALS
+        let possibilities = ALL_WIRES
             .into_iter()
-            .flat_map(|signal| ALL_WIRES.into_iter().map(move |wire| (wire, signal)))
+            .flat_map(|wire| ALL_SIGNALS.into_iter().map(move |signal| (wire, signal)))
             .collect();
 
         Self {
-            guesses,
+            possibilities,
             ..Self::default()
         }
     }
 
     /// Figure out which signal corresponds to which wire, based on the given observed pattern samples
     fn solve(&mut self, samples: &[Pattern]) -> Option<Vec<(Wire, Signal)>> {
+        dbg!(&self);
         loop {
             for sample in samples {
                 self.changed = false;
@@ -268,61 +306,36 @@ impl Guesses {
         for signal in signals {
             let unsolved_wires: Vec<_> = wires
                 .iter()
-                .filter(|wire| self.guesses.iter().any(|(w, s)| *s == signal && w == *wire))
+                .filter(|wire| {
+                    self.possibilities
+                        .iter()
+                        .any(|(w, s)| *s == signal && w == *wire)
+                })
                 .collect();
             if unsolved_wires.len() == 1 {
                 self.mark_known(*unsolved_wires[0], signal);
             }
         }
 
-        eprintln!("  |abcdefg");
-        eprintln!("--+-------");
-        for signal in ALL_SIGNALS {
-            eprintln!(
-                "{}{}",
-                match signal {
-                    Signal::Top => " T|",
-                    Signal::TopLeft => "TL|",
-                    Signal::TopRight => "TR|",
-                    Signal::Middle => " M|",
-                    Signal::BottomLeft => "BL|",
-                    Signal::BottomRight => "BR|",
-                    Signal::Bottom => " B|",
-                },
-                ALL_WIRES
-                    .iter()
-                    .map(
-                        |wire| match self.guesses.iter().find(|(w, s)| (w == wire)) {
-                            Some(_) => ' ',
-                            None => '.',
-                        }
-                    )
-                    .collect::<String>()
-            );
-        }
-        dbg!(&self.solution);
+        dbg!(&self);
     }
 
     /// Add a wire/signal pair to the solutions vec and remove all invalidated possibilities
     /// Also marks the guesses struct as changed for this iteration of the main solve loop
     fn mark_known(&mut self, wire: Wire, signal: Signal) {
         self.solution.push((wire, signal));
-        self.guesses.retain(|(w, s)| *w != wire && *s != signal);
+        self.possibilities
+            .retain(|(w, s)| *w != wire && *s != signal);
         self.changed = true;
     }
 
     /// Cross off guesses that we know are invalid
     fn narrow_guesses(&mut self, wires: &[Wire], signals: &[Signal]) {
-        self.guesses.retain(|(w, s)| {
-            if wires.contains(w) {
-                return signals.contains(s);
-            }
-
-            if signals.contains(s) {
-                return wires.contains(w);
-            }
-
-            true
+        self.possibilities.retain(|(w, s)| {
+            matches!(
+                (wires.contains(w), signals.contains(s)),
+                (true, true) | (false, false)
+            )
         });
         self.changed = true;
     }
@@ -374,9 +387,9 @@ pub fn solve_segments(data: &str) -> usize {
 
             // return None;
 
-            let mut guesses = Guesses::new();
+            let mut solver = Solver::new();
 
-            if let Some(solution) = guesses.solve(&samples) {
+            if let Some(solution) = solver.solve(&samples) {
                 return signals
                     .split_ascii_whitespace()
                     .filter_map(Pattern::parse)
@@ -397,6 +410,59 @@ pub fn solve_segments(data: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mark_solved() {
+        let mut solver = Solver {
+            possibilities: vec![
+                (Wire::A, Signal::Top),
+                (Wire::A, Signal::Bottom),
+                (Wire::B, Signal::Top),
+                (Wire::B, Signal::Bottom),
+            ],
+            ..Default::default()
+        };
+
+        solver.mark_known(Wire::A, Signal::Top);
+
+        // TODO this should actually be in solution
+        assert_eq!(vec![(Wire::B, Signal::Bottom)], solver.possibilities);
+    }
+
+    #[test]
+    fn narrow_guesses() {
+        let mut solver = Solver {
+            possibilities: vec![
+                (Wire::A, Signal::Top),
+                (Wire::A, Signal::Middle),
+                (Wire::A, Signal::Bottom),
+                (Wire::B, Signal::Top),
+                (Wire::B, Signal::Middle),
+                (Wire::B, Signal::Bottom),
+                (Wire::C, Signal::Top),
+                (Wire::C, Signal::Middle),
+                (Wire::C, Signal::Bottom),
+            ],
+            ..Default::default()
+        };
+
+        solver.narrow_guesses(
+            [Wire::A, Wire::B].as_slice(),
+            [Signal::Top, Signal::Bottom].as_slice(),
+        );
+
+        assert_eq!(
+            vec![
+                (Wire::A, Signal::Top),
+                (Wire::A, Signal::Bottom),
+                (Wire::B, Signal::Top),
+                (Wire::B, Signal::Bottom),
+                // TODO this should be in solution
+                (Wire::C, Signal::Middle),
+            ],
+            solver.possibilities
+        );
+    }
 
     const SMALL_DATA: &str =
         "acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab | cdfeb fcadb cdfeb cdbaf";
