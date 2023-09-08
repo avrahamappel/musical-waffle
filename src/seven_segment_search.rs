@@ -277,36 +277,92 @@ impl Solver {
                 let matched_patterns: Vec<_> = digit_patterns()
                     .into_iter()
                     .filter(|(_, ps)| ps.len() == sample.len())
+                    .map(|t| t.1)
                     .collect();
 
-                for (_, pattern) in matched_patterns {
-                    self.deduce(sample.wires.clone(), pattern);
-
-                    if let Some(solution) = self.solved() {
-                        return Some(solution.clone());
-                    }
+                let wires = sample.wires.clone();
+                if let Some(pattern) = self.deduce_pattern(&wires, matched_patterns) {
+                    self.deduce(wires, pattern);
                 }
 
-                if !self.changed {
-                    return None;
+                if let Some(solution) = self.is_solved() {
+                    return Some(solution.clone());
                 }
+            }
+
+            if !self.changed {
+                return None;
             }
         }
     }
 
-    /// Do some logic to narrow down the guesses
+    /// Figure out which signal pattern is correct for this wire pattern
+    fn deduce_pattern(
+        &self,
+        wires: &Vec<Wire>,
+        mut signal_patterns: Vec<Vec<Signal>>,
+    ) -> Option<Vec<Signal>> {
+        // If there's only one to begin with, return it
+        if signal_patterns.len() == 1 {
+            return signal_patterns.pop();
+        }
+
+        for wire in wires {
+            dbg!(wire);
+            // if this wire is solved, reject any patterns that do not contain it
+            if let Some((_, signal)) = self.solution.iter().find(|(w, _)| w == wire) {
+                dbg!(signal);
+                signal_patterns.retain(|signals| {
+                    let cont = signals.contains(signal);
+                    if cont {
+                        dbg!(signals);
+                    }
+                    cont
+                });
+            } else {
+                // reject any patterns that do not contain at least one possible signal for this wire
+                let possible_signals: Vec<_> = self
+                    .possibilities
+                    .iter()
+                    .filter(|(w, _)| w == wire)
+                    .map(|t| t.1)
+                    .collect();
+                dbg!(&possible_signals);
+                signal_patterns.retain(|signals| {
+                    possible_signals.iter().any(|ps| {
+                        let cont = signals.contains(ps);
+                        if cont {
+                            dbg!(signals);
+                        }
+                        cont
+                    })
+                });
+            }
+        }
+
+        // if there is only one pattern left, that's the correct pattern.
+        if signal_patterns.len() == 1 {
+            signal_patterns.pop()
+        } else {
+            dbg!(signal_patterns);
+            None
+        }
+    }
+
+    /// Figure out which wire belongs to which signal of the pattern
     fn deduce(&mut self, mut wires: Vec<Wire>, signals: Vec<Signal>) {
-        dbg!(&wires, &signals);
+        // dbg!(&wires, &signals);
         // narrow guesses
         self.narrow_guesses(&wires, &signals);
 
-        // for each signal, find all wires which still have guesses in the table -- if there's only
+        // for each signal, find all wires which still have not been solved -- if there's only
         // one, mark that as known
         for signal in signals {
             let unsolved_wires: Vec<_> = wires
                 .iter()
                 .filter(|wire| {
-                    self.possibilities
+                    !self
+                        .solution
                         .iter()
                         .any(|(w, s)| *s == signal && w == *wire)
                 })
@@ -359,7 +415,7 @@ impl Solver {
     }
 
     /// Get the solution, if known
-    fn solved(&self) -> Option<&Vec<(Wire, Signal)>> {
+    fn is_solved(&self) -> Option<&Vec<(Wire, Signal)>> {
         if self.solution.len() == 7 {
             return Some(&self.solution);
         }
@@ -401,10 +457,6 @@ pub fn solve_segments(data: &str) -> usize {
                 )
             });
 
-            // dbg!(samples);
-
-            // return None;
-
             let mut solver = Solver::new();
 
             if let Some(solution) = solver.solve(&samples) {
@@ -428,6 +480,43 @@ pub fn solve_segments(data: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn deduce_pattern_from_possibilities() {
+        let solver = Solver {
+            possibilities: vec![
+                (Wire::A, Signal::Top),
+                (Wire::A, Signal::Bottom),
+                (Wire::B, Signal::Top),
+                (Wire::B, Signal::Bottom),
+            ],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            Some(vec![Signal::Top]),
+            solver.deduce_pattern(
+                &vec![Wire::A],
+                vec![vec![Signal::Top], vec![Signal::Middle]]
+            )
+        );
+    }
+
+    #[test]
+    fn deduce_pattern_from_solution() {
+        let solver = Solver {
+            solution: vec![(Wire::A, Signal::Top), (Wire::B, Signal::Bottom)],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            Some(vec![Signal::Top]),
+            solver.deduce_pattern(
+                &vec![Wire::A],
+                vec![vec![Signal::Top], vec![Signal::Bottom]]
+            )
+        );
+    }
 
     #[test]
     fn mark_solved() {
@@ -519,8 +608,8 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
         assert_eq!(26, unique_segment_total(DATA));
     }
 
-    // #[test]
-    // fn test_solve_segments() {
-    //     assert_eq!(16, solve_segments(SMALL_DATA));
-    // }
+    #[test]
+    fn test_solve_segments() {
+        assert_eq!(16, solve_segments(SMALL_DATA));
+    }
 }
