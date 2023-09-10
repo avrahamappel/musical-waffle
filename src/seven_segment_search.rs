@@ -335,7 +335,7 @@ impl Solver {
     }
 
     /// Figure out which wire belongs to which signal of the pattern
-    fn deduce(&mut self, mut wires: Vec<Wire>, signals: Vec<Signal>) {
+    fn deduce(&mut self, wires: Vec<Wire>, signals: Vec<Signal>) {
         // dbg!(&wires, &signals);
         // narrow guesses
         self.narrow_guesses(&wires, &signals);
@@ -393,23 +393,63 @@ impl Solver {
 
     /// Get all logical "groups" of wire/signal pairs (one or more wires sharing the same guesses,
     /// the number of which is the same as the number of wires themselves)
+    /// This might be relatively expensive, so don't call more often than necessary
+    /// TODO cache this in the struct, invalidate cache at the same time as `changed` is updated
     fn groups(&self) -> impl Iterator<Item = (Vec<Wire>, Vec<Signal>)> {
-        todo!()
+        // Group the signals by wire
+        let mut by_wire = self.guesses.iter().fold(
+            Vec::with_capacity(ALL_WIRES.len()),
+            |mut acc: Vec<(Wire, Vec<Signal>)>, (wire, signal)| {
+                if let Some(pos) = acc.iter().position(|(w, _)| w == wire) {
+                    acc[pos].1.push(*signal);
+                } else {
+                    acc.push((*wire, vec![*signal]));
+                }
+                acc
+            },
+        );
+
+        let mut groups = Vec::new();
+
+        for wire in ALL_WIRES {
+            // for each entry, pull all the others that have the same guesses
+            let pos = by_wire.iter().position(|(w, _)| *w == wire);
+            if pos.is_none() {
+                continue;
+            }
+            let pos = pos.unwrap();
+            let entry = by_wire.swap_remove(pos);
+            let (same_guesses, other): (Vec<_>, Vec<_>) = by_wire
+                .iter()
+                .partition(|(_, signals)| signals.iter().all(|s| entry.1.contains(s)));
+            // if the number of wires matches the number of guesses, that is a group
+            if same_guesses.len() == entry.1.len() {
+                let mut wires = vec![entry.0];
+                let signals = entry.1;
+                wires.extend(same_guesses.into_iter().map(|(w, _)| w));
+                groups.push((wires, signals));
+                let new_by_wire: Vec<_> = other.into_iter().cloned().collect();
+                by_wire = new_by_wire;
+            }
+        }
+
+        // self.groups = groups;
+        groups.into_iter()
     }
 
     /// Get all groups that have only one possibility. This is the solution, provided that all
     /// wires and signals are contained in this group
-    fn solution(&self) -> impl Iterator<Item = (Wire, Signal)> {
+    fn solution(&self) -> impl Iterator<Item = (Wire, Signal)> + '_ {
         self.groups()
-            .filter(|(wires, signals)| wires.len() == 1)
+            .filter(|(wires, _signals)| wires.len() == 1)
             .map(|(wires, signals)| (wires[0], signals[0]))
     }
 
     /// Get the solution, if known
-    fn is_solved(&self) -> Option<&Vec<(Wire, Signal)>> {
+    fn is_solved(&self) -> Option<Vec<(Wire, Signal)>> {
         let solution: Vec<_> = self.solution().collect();
         if solution.len() == 7 {
-            return Some(&solution);
+            return Some(solution);
         }
 
         None
