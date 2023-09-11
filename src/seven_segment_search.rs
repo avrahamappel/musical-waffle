@@ -1,5 +1,6 @@
 use std::cmp::Reverse;
-use std::fmt::{Debug, Display, Error, Formatter};
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
 
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
@@ -31,7 +32,7 @@ enum Wire {
 }
 
 impl Display for Wire {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -75,20 +76,16 @@ enum Signal {
 }
 
 impl Display for Signal {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(
-            f,
-            "{}",
-            match self {
-                Signal::Top => "T",
-                Signal::TopLeft => "TL",
-                Signal::TopRight => "TR",
-                Signal::Middle => "M",
-                Signal::BottomLeft => "BL",
-                Signal::BottomRight => "BR",
-                Signal::Bottom => "B",
-            }
-        )
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.pad(match self {
+            Signal::Top => "T",
+            Signal::TopLeft => "TL",
+            Signal::TopRight => "TR",
+            Signal::Middle => "M",
+            Signal::BottomLeft => "BL",
+            Signal::BottomRight => "BR",
+            Signal::Bottom => "B",
+        })
     }
 }
 
@@ -253,13 +250,13 @@ const ALL_WIRES: [Wire; 7] = [
 ];
 
 impl Display for Solver {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f)?;
         writeln!(f, "  |abcdefg")?;
         for signal in ALL_SIGNALS {
             writeln!(
                 f,
-                "{:2}|{}",
+                "{:>2}|{}",
                 signal,
                 ALL_WIRES
                     .iter()
@@ -301,21 +298,26 @@ impl Solver {
             for sample in samples {
                 self.changed = false;
 
+                // Find all digit patterns that have the same length as this sample
                 let matched_patterns: Vec<_> = digit_patterns()
                     .into_iter()
                     .filter(|(_, ps)| ps.len() == sample.len())
                     .map(|t| t.1)
                     .collect();
 
-                let wires = sample.wires.clone();
-                if let Some(pattern) = self.deduce_pattern(&wires, matched_patterns) {
+                let wires = &sample.wires;
+                if let Some(pattern) = self.deduce_pattern(wires, matched_patterns) {
                     eprintln!(
-                        "Wires : '{}'",
+                        "Wires   : '{}'",
                         &wires.iter().map(Wire::to_string).collect::<String>()
                     );
                     eprintln!(
                         "Pattern : '{}'",
-                        &pattern.iter().map(Signal::to_string).collect::<String>()
+                        &pattern
+                            .iter()
+                            .map(Signal::to_string)
+                            .collect::<Vec<_>>()
+                            .join(",")
                     );
                     self.deduce(wires, pattern);
                 }
@@ -334,7 +336,7 @@ impl Solver {
     /// Figure out which signal pattern is correct for this wire pattern
     fn deduce_pattern(
         &self,
-        wires: &Vec<Wire>,
+        wires: &[Wire],
         mut signal_patterns: Vec<Vec<Signal>>,
     ) -> Option<Vec<Signal>> {
         // If there's only one to begin with, return it
@@ -363,10 +365,10 @@ impl Solver {
     }
 
     /// Figure out which wire belongs to which signal of the pattern
-    fn deduce(&mut self, wires: Vec<Wire>, signals: Vec<Signal>) {
+    fn deduce(&mut self, wires: &[Wire], signals: Vec<Signal>) {
         // dbg!(&wires, &signals);
         // narrow guesses
-        self.narrow_guesses(&wires, &signals);
+        self.narrow_guesses(wires, &signals);
 
         // for each signal, find all wires which still have not been solved -- if there's only
         // one, mark that as known
@@ -557,10 +559,7 @@ mod tests {
 
         assert_eq!(
             Some(vec![Signal::Top]),
-            solver.deduce_pattern(
-                &vec![Wire::A],
-                vec![vec![Signal::Top], vec![Signal::Middle]]
-            )
+            solver.deduce_pattern(&[Wire::A], vec![vec![Signal::Top], vec![Signal::Middle]])
         );
     }
 
@@ -615,10 +614,7 @@ mod tests {
             ..Default::default()
         };
 
-        solver.narrow_guesses(
-            [Wire::A, Wire::B].as_slice(),
-            [Signal::Top, Signal::Bottom].as_slice(),
-        );
+        solver.narrow_guesses(&[Wire::A, Wire::B], &[Signal::Top, Signal::Bottom]);
 
         assert_eq!(
             Solver {
@@ -652,10 +648,7 @@ mod tests {
             ..Default::default()
         };
 
-        solver.narrow_guesses(
-            [Wire::A, Wire::B].as_slice(),
-            [Signal::Top, Signal::Bottom].as_slice(),
-        );
+        solver.narrow_guesses(&[Wire::A, Wire::B], &[Signal::Top, Signal::Bottom]);
 
         assert_eq!(
             vec![
