@@ -1,5 +1,5 @@
 use std::cmp::Reverse;
-use std::fmt::{Debug, Error, Formatter};
+use std::fmt::{Debug, Display, Error, Formatter};
 
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
@@ -30,6 +30,24 @@ enum Wire {
     G,
 }
 
+impl Display for Wire {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::A => 'a',
+                Self::B => 'b',
+                Self::C => 'c',
+                Self::D => 'd',
+                Self::E => 'e',
+                Self::F => 'f',
+                Self::G => 'g',
+            }
+        )
+    }
+}
+
 impl Wire {
     fn parse(char: char) -> Option<Self> {
         match char {
@@ -54,6 +72,24 @@ enum Signal {
     BottomLeft,
     BottomRight,
     Bottom,
+}
+
+impl Display for Signal {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Signal::Top => "T",
+                Signal::TopLeft => "TL",
+                Signal::TopRight => "TR",
+                Signal::Middle => "M",
+                Signal::BottomLeft => "BL",
+                Signal::BottomRight => "BR",
+                Signal::Bottom => "B",
+            }
+        )
+    }
 }
 
 fn digit_patterns() -> [(Digit, Vec<Signal>); 10] {
@@ -190,7 +226,7 @@ impl Pattern {
 }
 
 /// This struct handles the main logic for figuring out which signal corresponds to which wire
-#[derive(Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 struct Solver {
     changed: bool,
     guesses: Vec<(Wire, Signal)>,
@@ -216,23 +252,15 @@ const ALL_WIRES: [Wire; 7] = [
     Wire::G,
 ];
 
-impl Debug for Solver {
+impl Display for Solver {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         writeln!(f)?;
         writeln!(f, "  |abcdefg")?;
         for signal in ALL_SIGNALS {
             writeln!(
                 f,
-                "{}{}",
-                match signal {
-                    Signal::Top => " T|",
-                    Signal::TopLeft => "TL|",
-                    Signal::TopRight => "TR|",
-                    Signal::Middle => " M|",
-                    Signal::BottomLeft => "BL|",
-                    Signal::BottomRight => "BR|",
-                    Signal::Bottom => " B|",
-                },
+                "{:2}|{}",
+                signal,
                 ALL_WIRES
                     .iter()
                     .map(|wire| {
@@ -268,7 +296,7 @@ impl Solver {
 
     /// Figure out which signal corresponds to which wire, based on the given observed pattern samples
     fn solve(&mut self, samples: &[Pattern]) -> Option<Vec<(Wire, Signal)>> {
-        dbg!(&self);
+        eprintln!("{}", &self);
         loop {
             for sample in samples {
                 self.changed = false;
@@ -281,6 +309,14 @@ impl Solver {
 
                 let wires = sample.wires.clone();
                 if let Some(pattern) = self.deduce_pattern(&wires, matched_patterns) {
+                    eprintln!(
+                        "Wires : '{}'",
+                        &wires.iter().map(Wire::to_string).collect::<String>()
+                    );
+                    eprintln!(
+                        "Pattern : '{}'",
+                        &pattern.iter().map(Signal::to_string).collect::<String>()
+                    );
                     self.deduce(wires, pattern);
                 }
 
@@ -306,25 +342,17 @@ impl Solver {
             return signal_patterns.pop();
         }
 
-        for wire in wires {
-            dbg!(wire);
-            // reject any patterns that do not contain at least one possible signal for this wire
-            let possible_signals: Vec<_> = self
-                .groups()
-                .filter(|(ws, _)| ws.contains(wire))
-                .map(|t| t.1)
-                .collect();
-            dbg!(&possible_signals);
-            signal_patterns.retain(|signals| {
-                possible_signals.iter().any(|ps| {
-                    let cont = ps.iter().all(|p| signals.contains(p));
-                    if cont {
-                        dbg!(signals);
-                    }
-                    cont
-                })
-            });
-        }
+        // If all wires in a group are found within the wire pattern, all signals must also appear
+        // in the signal pattern
+        signal_patterns.retain(|signals| {
+            self.groups().all(|(ws, ss)| {
+                if ws.iter().all(|w| wires.contains(w)) {
+                    ss.iter().all(|s| signals.contains(s))
+                } else {
+                    true
+                }
+            })
+        });
 
         // if there is exactly one pattern left, that's the correct pattern.
         if signal_patterns.len() == 1 {
@@ -352,7 +380,7 @@ impl Solver {
             }
         }
 
-        dbg!(&self);
+        eprintln!("{}", &self);
     }
 
     /// Add a wire/signal pair to the solution vec and remove all invalidated possibilities
@@ -422,8 +450,10 @@ impl Solver {
             let (same_guesses, other): (Vec<_>, Vec<_>) = by_wire
                 .iter()
                 .partition(|(_, signals)| signals.iter().all(|s| entry.1.contains(s)));
+            // Add one for the original entry
+            let number_of_wires = same_guesses.len() + 1;
             // if the number of wires matches the number of guesses, that is a group
-            if same_guesses.len() == entry.1.len() {
+            if number_of_wires == entry.1.len() {
                 let mut wires = vec![entry.0];
                 let signals = entry.1;
                 wires.extend(same_guesses.into_iter().map(|(w, _)| w));
@@ -602,6 +632,37 @@ mod tests {
                 changed: true,
             },
             solver
+        );
+    }
+
+    #[test]
+    fn groups() {
+        let mut solver = Solver {
+            guesses: vec![
+                (Wire::A, Signal::Top),
+                (Wire::A, Signal::Middle),
+                (Wire::A, Signal::Bottom),
+                (Wire::B, Signal::Top),
+                (Wire::B, Signal::Middle),
+                (Wire::B, Signal::Bottom),
+                (Wire::C, Signal::Top),
+                (Wire::C, Signal::Middle),
+                (Wire::C, Signal::Bottom),
+            ],
+            ..Default::default()
+        };
+
+        solver.narrow_guesses(
+            [Wire::A, Wire::B].as_slice(),
+            [Signal::Top, Signal::Bottom].as_slice(),
+        );
+
+        assert_eq!(
+            vec![
+                (vec![Wire::A, Wire::B], vec![Signal::Top, Signal::Bottom]),
+                (vec![Wire::C], vec![Signal::Middle])
+            ],
+            solver.groups().collect::<Vec<_>>()
         );
     }
 
