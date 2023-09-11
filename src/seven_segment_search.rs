@@ -525,6 +525,7 @@ pub fn solve_segments(data: &str) -> usize {
                 .filter_map(Pattern::parse)
                 .collect();
 
+            // Sort the segments, first by uniqueness of length (unique first), then by length
             samples.sort_unstable_by_key(|s| {
                 (
                     Reverse(DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS.contains(&s.len())),
@@ -540,10 +541,10 @@ pub fn solve_segments(data: &str) -> usize {
                     .filter_map(Pattern::parse)
                     .map(|p| p.decode(&solution))
                     .rev()
-                    .fold((1, 0), |(column, acc), digit| {
-                        (column * 10, acc + digit + column)
+                    .fold((0, 1), |(acc, column), digit| {
+                        (acc + (digit * column), column * 10)
                     })
-                    .1
+                    .0
                     .into();
             }
 
@@ -681,6 +682,6 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
 
     #[test]
     fn test_solve_segments() {
-        assert_eq!(16, solve_segments(SMALL_DATA));
+        assert_eq!(5353, solve_segments(SMALL_DATA));
     }
 }
