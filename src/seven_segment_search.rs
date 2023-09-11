@@ -227,6 +227,7 @@ impl Pattern {
 struct Solver {
     changed: bool,
     guesses: Vec<(Wire, Signal)>,
+    groups: Vec<(Vec<Wire>, Vec<Signal>)>,
 }
 
 const ALL_SIGNALS: [Signal; 7] = [
@@ -390,7 +391,7 @@ impl Solver {
     fn mark_known(&mut self, wire: Wire, signal: Signal) {
         self.guesses
             .retain(|(w, s)| matches!((*w != wire, *s != signal), (true, true) | (false, false)));
-        self.changed = true;
+        self.mark_changed();
     }
 
     /// Cross off possibilities that we know are invalid
@@ -402,7 +403,13 @@ impl Solver {
                 (true, true) | (false, false)
             )
         });
+        self.mark_changed();
+    }
+
+    /// Mark the struct as changed and recalculate the groups
+    fn mark_changed(&mut self) {
         self.changed = true;
+        self.update_groups();
     }
 
     /// If any possibilities are logically the only possibility
@@ -423,9 +430,7 @@ impl Solver {
 
     /// Get all logical "groups" of wire/signal pairs (one or more wires sharing the same guesses,
     /// the number of which is the same as the number of wires themselves)
-    /// This might be relatively expensive, so don't call more often than necessary
-    /// TODO cache this in the struct, invalidate cache at the same time as `changed` is updated
-    fn groups(&self) -> impl Iterator<Item = (Vec<Wire>, Vec<Signal>)> {
+    fn update_groups(&mut self) {
         // Group the signals by wire
         let mut by_wire = self.guesses.iter().fold(
             Vec::with_capacity(ALL_WIRES.len()),
@@ -465,8 +470,14 @@ impl Solver {
             }
         }
 
-        // self.groups = groups;
-        groups.into_iter()
+        self.groups = groups;
+    }
+
+    /// Get an iterator over the groups (see above)
+    fn groups(&self) -> impl Iterator<Item = (&Vec<Wire>, &Vec<Signal>)> {
+        // The purpose of this map is so that the vectors are passed by reference, rather than the
+        // tuple itself
+        self.groups.iter().map(|(wires, signals)| (wires, signals))
     }
 
     /// Get all groups that have only one possibility. This is the solution, provided that all
@@ -546,24 +557,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deduce_pattern() {
-        let solver = Solver {
-            guesses: vec![
-                (Wire::A, Signal::Top),
-                (Wire::A, Signal::Bottom),
-                (Wire::B, Signal::Top),
-                (Wire::B, Signal::Bottom),
-            ],
-            ..Default::default()
-        };
-
-        assert_eq!(
-            Some(vec![Signal::Top]),
-            solver.deduce_pattern(&[Wire::A], vec![vec![Signal::Top], vec![Signal::Middle]])
-        );
-    }
-
-    #[test]
     fn mark_solved() {
         let mut solver = Solver {
             guesses: vec![
@@ -591,7 +584,11 @@ mod tests {
                     (Wire::C, Signal::Middle),
                     (Wire::C, Signal::Bottom),
                 ],
-                changed: true
+                changed: true,
+                groups: vec![
+                    (vec![Wire::A], vec![Signal::Top]),
+                    (vec![Wire::B, Wire::C], vec![Signal::Middle, Signal::Bottom])
+                ],
             },
             solver
         );
@@ -626,6 +623,10 @@ mod tests {
                     (Wire::C, Signal::Middle),
                 ],
                 changed: true,
+                groups: vec![
+                    (vec![Wire::A, Wire::B], vec![Signal::Top, Signal::Bottom]),
+                    (vec![Wire::C], vec![Signal::Middle])
+                ]
             },
             solver
         );
@@ -652,8 +653,8 @@ mod tests {
 
         assert_eq!(
             vec![
-                (vec![Wire::A, Wire::B], vec![Signal::Top, Signal::Bottom]),
-                (vec![Wire::C], vec![Signal::Middle])
+                (&vec![Wire::A, Wire::B], &vec![Signal::Top, Signal::Bottom]),
+                (&vec![Wire::C], &vec![Signal::Middle])
             ],
             solver.groups().collect::<Vec<_>>()
         );
