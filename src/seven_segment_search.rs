@@ -1,8 +1,7 @@
 use std::borrow::Borrow;
 use std::cmp::Reverse;
 use std::collections::BTreeSet;
-use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
@@ -285,6 +284,20 @@ impl Display for Solver {
                         }
                     })
                     .collect::<String>()
+            )?;
+        }
+        writeln!(f, "----------")?;
+        writeln!(f, "Groups:")?;
+        for (wires, signals) in self.groups() {
+            writeln!(
+                f,
+                "{:>8} : {}",
+                wires.iter().map(Wire::to_string).collect::<String>(),
+                signals
+                    .iter()
+                    .map(Signal::to_string)
+                    .collect::<Vec<_>>()
+                    .join(",")
             )?;
         }
         writeln!(f, "----------")?;
