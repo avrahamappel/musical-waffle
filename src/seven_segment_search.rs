@@ -558,6 +558,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn decode_pattern_using_solution() {
+        let pattern = Pattern::parse("cefbgd").unwrap();
+
+        assert_eq!(
+            9,
+            pattern.decode(&[
+                (Wire::A, Signal::BottomLeft),
+                (Wire::B, Signal::TopRight),
+                (Wire::C, Signal::Middle),
+                (Wire::D, Signal::Top),
+                (Wire::E, Signal::BottomRight),
+                (Wire::F, Signal::Bottom),
+                (Wire::G, Signal::TopLeft)
+            ])
+        );
+    }
+
+    #[test]
     fn mark_solved() {
         let mut solver = Solver {
             guesses: vec![
