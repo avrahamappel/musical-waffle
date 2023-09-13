@@ -89,6 +89,8 @@ fn day_seven() {
 fn day_eight() {
     let data = include_str!("../data/seven_segment_search.txt");
 
-    println!("Day 8: Seven Segment Search");
+    println!("Day 8: Seven Segment Search Part 1");
     assert_eq!(521, seven_segment_search::unique_segment_total(data));
+    println!("Day 8: Seven Segment Search Part 2");
+    assert_eq!(1_016_804, seven_segment_search::solve_segments(data));
 }
