@@ -1,9 +1,26 @@
+use std::borrow::Borrow;
 use std::cmp::Reverse;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 
 /// Corresponds to digits 1, 4, 7, and 8
 const DIGITS_WITH_UNIQUE_NUMBER_SEGMENTS: [usize; 4] = [2, 4, 3, 7];
+
+/// Check if two slices contain the same elements
+#[inline]
+fn slice_eq<T, R1, R2>(slice1: &[R1], slice2: &[R2]) -> bool
+where
+    T: Ord,
+    R1: Borrow<T> + Ord,
+    R2: Borrow<T> + Ord,
+{
+    let set1: BTreeSet<_> = slice1.iter().map(Borrow::borrow).collect();
+    let set2: BTreeSet<_> = slice2.iter().map(Borrow::borrow).collect();
+    let mut difference = set1.symmetric_difference(&set2);
+
+    difference.next().is_none()
+}
 
 #[repr(usize)]
 #[derive(Clone, Copy)]
@@ -64,7 +81,7 @@ impl Wire {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 enum Signal {
     Top,
     TopLeft,
@@ -210,20 +227,17 @@ impl Pattern {
             .filter_map(|wire| solution.iter().find_map(|(w, s)| (w == wire).then_some(s)))
             .collect();
 
-        *digit_patterns()
+        digit_patterns()
             .iter()
             .find_map(|(digit, pattern)| {
-                signals
-                    .iter()
-                    .all(|s| pattern.contains(*s))
-                    .then_some(digit)
+                slice_eq(&pattern[..], &signals[..]).then_some(*digit as usize)
             })
-            .expect("The solution should work to find a digit") as usize
+            .expect("The solution should work to find a digit")
     }
 }
 
 /// This struct handles the main logic for figuring out which signal corresponds to which wire
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq)]
 struct Solver {
     changed: bool,
     guesses: Vec<(Wire, Signal)>,
@@ -367,7 +381,6 @@ impl Solver {
 
     /// Figure out which wire belongs to which signal of the pattern
     fn deduce(&mut self, wires: &[Wire], signals: Vec<Signal>) {
-        // dbg!(&wires, &signals);
         // narrow guesses
         self.narrow_guesses(wires, &signals);
 
@@ -410,23 +423,18 @@ impl Solver {
     fn mark_changed(&mut self) {
         self.changed = true;
         self.update_groups();
+        self.find_known();
     }
 
     /// If any possibilities are logically the only possibility
     /// for that pair, move it to the solution vec
-    /// This is O(n * n)
-    // fn find_known(&mut self) {
-    //     let (mut move_to_solution, other_possibilities): (Vec<_>, Vec<_>) =
-    //         self.guesses.iter().partition(|(wire, signal)| {
-    //             // are there no other possibilities that have the same wire or the same signal
-    //             self.guesses
-    //                 .iter()
-    //                 .all(|(w, s)| matches!((w == wire, s == signal), (true, true) | (false, false)))
-    //         });
+    fn find_known(&mut self) {
+        let mut groups = self.groups.clone().into_iter();
 
-    //     self.solution.append(&mut move_to_solution);
-    //     self.guesses = other_possibilities;
-    // }
+        self.guesses.retain(|(w, s)| {
+            groups.all(|(ws, ss)| if ws.contains(w) { ss.contains(s) } else { true })
+        });
+    }
 
     /// Get all logical "groups" of wire/signal pairs (one or more wires sharing the same guesses,
     /// the number of which is the same as the number of wires themselves)
@@ -456,7 +464,7 @@ impl Solver {
             let entry = by_wire.swap_remove(pos);
             let (same_guesses, other): (Vec<_>, Vec<_>) = by_wire
                 .iter()
-                .partition(|(_, signals)| signals.iter().all(|s| entry.1.contains(s)));
+                .partition(|(_, signals)| slice_eq(&entry.1, signals));
             // Add one for the original entry
             let number_of_wires = same_guesses.len() + 1;
             // if the number of wires matches the number of guesses, that is a group
@@ -701,5 +709,6 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
     #[test]
     fn test_solve_segments() {
         assert_eq!(5353, solve_segments(SMALL_DATA));
+        assert_eq!(61229, solve_segments(DATA));
     }
 }
